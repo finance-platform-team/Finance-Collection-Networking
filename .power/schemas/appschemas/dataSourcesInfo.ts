@@ -165,5 +165,12 @@ export const dataSourcesInfo = {
     "primaryKey": "systemuserid",
     "dataSourceType": "Dataverse",
     "apis": {}
+  },
+  "cfm_planweekobjectives": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cfm_planweekobjectiveid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   }
 };

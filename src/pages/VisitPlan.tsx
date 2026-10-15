@@ -6,6 +6,7 @@ import { BusinessunitsService } from '../generated/services/BusinessunitsService
 import { Pm_kpiachievmentsService } from '../generated/services/Pm_kpiachievmentsService';
 import { Stf_kpiachievmentbreakdownsService } from '../generated/services/Stf_kpiachievmentbreakdownsService';
 import { Cfm_collectionplanweeksService } from '../generated/services/Cfm_collectionplanweeksService';
+import { Cfm_planweekobjectivesService } from '../generated/services/Cfm_planweekobjectivesService';
 import { Strategy_kpisesService } from '../generated/services/Strategy_kpisesService';
 import { Hr_employeesService } from '../generated/services/Hr_employeesService';
 import { Cr301_agentsService } from '../generated/services/Cr301_agentsService';
@@ -13,6 +14,7 @@ import { Cr301_visitsService } from '../generated/services/Cr301_visitsService';
 import type { Pm_kpiachievments, Pm_kpiachievmentsBase } from '../generated/models/Pm_kpiachievmentsModel';
 import type { Stf_kpiachievmentbreakdowns, Stf_kpiachievmentbreakdownsBase } from '../generated/models/Stf_kpiachievmentbreakdownsModel';
 import type { Cfm_collectionplanweeks, Cfm_collectionplanweeksBase } from '../generated/models/Cfm_collectionplanweeksModel';
+import type { Cfm_planweekobjectives, Cfm_planweekobjectivesBase } from '../generated/models/Cfm_planweekobjectivesModel';
 import type { Hr_employees } from '../generated/models/Hr_employeesModel';
 import type { Strategy_kpises } from '../generated/models/Strategy_kpisesModel';
 import { operationErrorMessage } from '../lib/errors';
@@ -49,6 +51,17 @@ const BREAKDOWN_TYPE = 5;
 const BREAKDOWN_TABLE = 'stf_kpiachievmentbreakdowns';
 const WEEK_TABLE = 'cfm_collectionplanweeks';
 const ACHIEVEMENT_TABLE = 'pm_kpiachievments';
+const OBJECTIVE_TABLE = 'cfm_planweekobjectives';
+// cfm_planweekobjective.cfm_objective choice values. Each week's cfm_plan is
+// the sum of its objectives' cfm_target — objectives are plan-only, the
+// week's Actual still comes from visits as a single number.
+const OBJECTIVES = [
+  { value: 1, label: 'Collection' },
+  { value: 2, label: 'Dispute Resolution' },
+  { value: 3, label: 'Follow-up' },
+  { value: 4, label: 'Reconciliation for Deduction' },
+] as const;
+type ObjectiveValue = (typeof OBJECTIVES)[number]['value'];
 // Same cr18c_area choice on cr301_agents / same Egypt-vs-KSA mapping as
 // Agents.tsx (KSA = the real KSA choice value, Egypt = everything else,
 // including unset — see Agents.tsx's AREA_EGYPT comment for why).
@@ -86,6 +99,7 @@ const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'Jul
 const ACHIEVEMENT_SELECT = ['pm_kpiachievmentid', 'pm_month', 'pm_year', '_pm_kpi_value', 'pm_actual', 'pm_target'];
 const BREAKDOWN_SELECT = ['stf_kpiachievmentbreakdownid', 'stf_value', 'comp_breakdowntarget', '_stf_total_value', '_stf_employee_value', 'statecode'];
 const WEEK_SELECT = ['cfm_collectionplanweekid', 'cfm_weeknumber', 'cfm_plan', 'cfm_actual', '_cfm_kpiachievementbreakdown_value'];
+const OBJECTIVE_SELECT = ['cfm_planweekobjectiveid', 'cfm_objective', 'cfm_target', '_cfm_collectionplanweek_value'];
 
 function formattedValue(record: unknown, attribute: string): string {
   const raw = (record as Record<string, unknown>)[`${attribute}@OData.Community.Display.V1.FormattedValue`];
@@ -185,6 +199,10 @@ interface WeekRow {
   number: number;
   plan: number;
   actual: number;
+  /** This week's objective rows keyed by cfm_objective value. Only objectives
+   *  with a saved record are present — a missing key means 0. Empty for
+   *  weeks created before objectives existed (their plan is a bare number). */
+  objectives: Partial<Record<ObjectiveValue, { id: string; target: number }>>;
   /** Breakdown of this week's `actual` count into visits whose Visit Date
    *  actually falls in this week's own range vs ones that landed here only
    *  because that's when they were created/logged — same "wrong week" check
@@ -241,7 +259,16 @@ interface OwnerCard {
   key: string;
   employeeId: string;
   query: string;
-  plans: number[];
+  /** grid[objectiveIdx][weekIdx] — rows follow OBJECTIVES order. */
+  grid: number[][];
+  collapsed: boolean;
+}
+
+function cardWeekTotals(card: OwnerCard): number[] {
+  return Array.from({ length: WEEK_COUNT }, (_, wi) => card.grid.reduce((s, row) => s + (Number(row[wi]) || 0), 0));
+}
+function cardTotal(card: OwnerCard): number {
+  return card.grid.reduce((s, row) => s + row.reduce((a, b) => a + (Number(b) || 0), 0), 0);
 }
 
 type CellState = 'saving' | 'saved' | 'error';
@@ -375,7 +402,7 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
       // 851-row headcount data), so fetching it unfiltered doesn't scale and risks
       // this class of bug again even with the achievement-id join guard below.
       const achIdFilter = achRows.map((a) => `_stf_total_value eq ${a.pm_kpiachievmentid}`).join(' or ');
-      const [brkRows, weekRows, visitRows] = await Promise.all([
+      const [brkRows, weekRows, objectiveRows, visitRows] = await Promise.all([
         achRows.length === 0
           ? Promise.resolve([])
           : fetchAll<Stf_kpiachievmentbreakdowns>(
@@ -396,6 +423,11 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
           (skipToken) =>
             Cfm_collectionplanweeksService.getAll({ select: WEEK_SELECT, filter: 'statecode eq 0', orderBy: ['cfm_weeknumber asc'], maxPageSize: 5000, skipToken }),
           'Could not load collection plan weeks.'
+        ),
+        fetchAll<Cfm_planweekobjectives>(
+          (skipToken) =>
+            Cfm_planweekobjectivesService.getAll({ select: OBJECTIVE_SELECT, filter: 'statecode eq 0', maxPageSize: 5000, skipToken }),
+          'Could not load week objectives.'
         ),
         // For the correct-week/wrong-week breakdown under each week's Actual —
         // same visits adjustVisitPlanActual itself would have counted.
@@ -479,11 +511,27 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
       }));
       const employeeMap = new Map(employeeOptions.map((e) => [e.id, e.name]));
 
+      const objectivesByWeek = new Map<string, WeekRow['objectives']>();
+      objectiveRows.forEach((r) => {
+        const weekId = r._cfm_collectionplanweek_value;
+        const objective = N(r.cfm_objective as number | undefined) as ObjectiveValue;
+        if (!weekId || !OBJECTIVES.some((o) => o.value === objective)) return;
+        const entry = objectivesByWeek.get(weekId) || {};
+        entry[objective] = { id: r.cfm_planweekobjectiveid, target: N(r.cfm_target) };
+        objectivesByWeek.set(weekId, entry);
+      });
+
       const weeksByBrk = new Map<string, WeekRow[]>();
       weekRows.forEach((w) => {
         const brkId = w._cfm_kpiachievementbreakdown_value;
         if (!brkId) return;
-        const row: WeekRow = { id: w.cfm_collectionplanweekid, number: N(w.cfm_weeknumber), plan: N(w.cfm_plan), actual: N(w.cfm_actual) };
+        const row: WeekRow = {
+          id: w.cfm_collectionplanweekid,
+          number: N(w.cfm_weeknumber),
+          plan: N(w.cfm_plan),
+          actual: N(w.cfm_actual),
+          objectives: objectivesByWeek.get(w.cfm_collectionplanweekid) || {},
+        };
         const list = weeksByBrk.get(brkId);
         if (list) list.push(row);
         else weeksByBrk.set(brkId, [row]);
@@ -727,43 +775,7 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
     const key = week.id;
     setCellState((prev) => ({ ...prev, [key]: 'saving' }));
     try {
-      const weekResult = await Cfm_collectionplanweeksService.update(week.id, { cfm_plan: value });
-      if (!weekResult.success) throw new Error(operationErrorMessage(weekResult.error, 'Could not save plan.'));
-
-      // Sum from a fresh server read of this breakdown's weeks rather than the
-      // client-side owner.weeks snapshot: saving several weeks back-to-back (faster
-      // than each PATCH round-trips) means each save's local snapshot doesn't yet
-      // know about the others still in flight, so a client-computed total can
-      // undercount. A fresh read always reflects every commit that has actually landed.
-      const freshWeeks = await fetchAll<Cfm_collectionplanweeks>(
-        (skipToken) =>
-          Cfm_collectionplanweeksService.getAll({
-            select: ['cfm_plan'],
-            filter: `_cfm_kpiachievementbreakdown_value eq ${owner.breakdownId} and statecode eq 0`,
-            maxPageSize: 5000,
-            skipToken,
-          }),
-        'Could not verify week totals.'
-      );
-      const totalPlan = freshWeeks.reduce((s, w) => s + N(w.cfm_plan), 0);
-      const brkResult = await Stf_kpiachievmentbreakdownsService.update(owner.breakdownId, { comp_breakdowntarget: totalPlan });
-      if (!brkResult.success) throw new Error(operationErrorMessage(brkResult.error, 'Could not update breakdown target.'));
-
-      // Roll the new breakdown target up into its KPI achievement's target too,
-      // so pm_target always reflects the sum of every breakdown's target without
-      // waiting for a full page reload.
-      try {
-        const siblingTarget = allOwners
-          .filter((o) => o.achievementId === owner.achievementId && o.breakdownId !== owner.breakdownId)
-          .reduce((s, o) => s + o.target, 0);
-        await Pm_kpiachievmentsService.update(owner.achievementId, { pm_target: siblingTarget + totalPlan });
-      } catch {
-        // non-fatal: the next full load re-syncs this from scratch
-      }
-
-      setAllOwners((prev) =>
-        prev.map((o) => (o.breakdownId !== owner.breakdownId ? o : { ...o, target: totalPlan, weeks: o.weeks.map((w) => (w.id === week.id ? { ...w, plan: value } : w)) }))
-      );
+      await saveWeekPlan(owner, week.id, value);
       setPlanDrafts((prev) => {
         const next = { ...prev };
         delete next[week.id];
@@ -776,6 +788,123 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
       setTimeout(() => setCellState((prev) => { const n = { ...prev }; delete n[key]; return n; }), 1400);
       showToast(e instanceof Error ? e.message : 'Save failed.', 4500);
     }
+  }
+
+  function objectiveDraftKey(weekId: string, objective: ObjectiveValue): string {
+    return `${weekId}|obj${objective}`;
+  }
+  function objectiveValue(w: WeekRow, objective: ObjectiveValue): string {
+    const k = objectiveDraftKey(w.id, objective);
+    return k in planDrafts ? planDrafts[k] : String(w.objectives[objective]?.target ?? 0);
+  }
+
+  /**
+   * Save one objective's target for a week, then set the week's cfm_plan to
+   * the sum of its objectives and roll that up (same path as commitPlan).
+   * A missing objective record is created (and bound to the week) only when
+   * the new value is > 0; an existing one is updated in place, even to 0.
+   */
+  async function commitObjective(owner: OwnerRow, week: WeekRow, objective: ObjectiveValue) {
+    const draftKey = objectiveDraftKey(week.id, objective);
+    const draft = planDrafts[draftKey];
+    if (draft === undefined) return;
+    const value = Math.max(0, Number(draft) || 0);
+    const existing = week.objectives[objective];
+    const clearDraft = () =>
+      setPlanDrafts((prev) => {
+        const next = { ...prev };
+        delete next[draftKey];
+        return next;
+      });
+    if (value === (existing?.target ?? 0)) {
+      clearDraft();
+      return;
+    }
+    const key = week.id;
+    setCellState((prev) => ({ ...prev, [key]: 'saving' }));
+    try {
+      let objectiveId = existing?.id;
+      if (objectiveId) {
+        const res = await Cfm_planweekobjectivesService.update(objectiveId, { cfm_target: value });
+        if (!res.success) throw new Error(operationErrorMessage(res.error, 'Could not save objective.'));
+      } else {
+        objectiveId = await createWeekObjective(week.id, week.number, objective, value);
+      }
+      const objectives = { ...week.objectives, [objective]: { id: objectiveId, target: value } };
+      const weekPlan = Object.values(objectives).reduce((s, o) => s + (o?.target ?? 0), 0);
+      await saveWeekPlan(owner, week.id, weekPlan, { objectives });
+      clearDraft();
+      setCellState((prev) => ({ ...prev, [key]: 'saved' }));
+      setTimeout(() => setCellState((prev) => { const n = { ...prev }; delete n[key]; return n; }), 900);
+    } catch (e) {
+      setCellState((prev) => ({ ...prev, [key]: 'error' }));
+      setTimeout(() => setCellState((prev) => { const n = { ...prev }; delete n[key]; return n; }), 1400);
+      showToast(e instanceof Error ? e.message : 'Save failed.', 4500);
+    }
+  }
+
+  /** Create one cfm_planweekobjective and bind it to its week (plain fields
+   *  first, lookup separately — see bindLookups' comment). Returns its id. */
+  async function createWeekObjective(weekId: string, weekNumber: number, objective: ObjectiveValue, target: number): Promise<string> {
+    const label = OBJECTIVES.find((o) => o.value === objective)?.label || 'Objective';
+    const body: Record<string, unknown> = {
+      cfm_planweekobjective: `Week ${weekNumber} – ${label}`,
+      cfm_objective: objective,
+      cfm_target: target,
+    };
+    const res = await Cfm_planweekobjectivesService.create(body as unknown as Omit<Cfm_planweekobjectivesBase, 'cfm_planweekobjectiveid'>);
+    if (!res.success) throw new Error(operationErrorMessage(res.error, `Could not save the "${label}" objective.`));
+    const id = (res.data as unknown as { cfm_planweekobjectiveid?: string })?.cfm_planweekobjectiveid;
+    if (!id) throw new Error(`"${label}" objective was created but no id was returned.`);
+    const bound = await bindLookups(OBJECTIVE_TABLE, id, { cfm_collectionplanweek: `/cfm_collectionplanweeks(${weekId})` });
+    if (!bound) throw new Error(`"${label}" objective saved but could not be linked to its week (objective id ${id}).`);
+    return id;
+  }
+
+  /** Write a week's cfm_plan and roll the new total up into its breakdown
+   *  and KPI achievement targets, then patch local state. */
+  async function saveWeekPlan(owner: OwnerRow, weekId: string, value: number, weekPatch: Partial<WeekRow> = {}) {
+    const weekResult = await Cfm_collectionplanweeksService.update(weekId, { cfm_plan: value });
+    if (!weekResult.success) throw new Error(operationErrorMessage(weekResult.error, 'Could not save plan.'));
+
+    // Sum from a fresh server read of this breakdown's weeks rather than the
+    // client-side owner.weeks snapshot: saving several weeks back-to-back (faster
+    // than each PATCH round-trips) means each save's local snapshot doesn't yet
+    // know about the others still in flight, so a client-computed total can
+    // undercount. A fresh read always reflects every commit that has actually landed.
+    const freshWeeks = await fetchAll<Cfm_collectionplanweeks>(
+      (skipToken) =>
+        Cfm_collectionplanweeksService.getAll({
+          select: ['cfm_plan'],
+          filter: `_cfm_kpiachievementbreakdown_value eq ${owner.breakdownId} and statecode eq 0`,
+          maxPageSize: 5000,
+          skipToken,
+        }),
+      'Could not verify week totals.'
+    );
+    const totalPlan = freshWeeks.reduce((s, w) => s + N(w.cfm_plan), 0);
+    const brkResult = await Stf_kpiachievmentbreakdownsService.update(owner.breakdownId, { comp_breakdowntarget: totalPlan });
+    if (!brkResult.success) throw new Error(operationErrorMessage(brkResult.error, 'Could not update breakdown target.'));
+
+    // Roll the new breakdown target up into its KPI achievement's target too,
+    // so pm_target always reflects the sum of every breakdown's target without
+    // waiting for a full page reload.
+    try {
+      const siblingTarget = allOwners
+        .filter((o) => o.achievementId === owner.achievementId && o.breakdownId !== owner.breakdownId)
+        .reduce((s, o) => s + o.target, 0);
+      await Pm_kpiachievmentsService.update(owner.achievementId, { pm_target: siblingTarget + totalPlan });
+    } catch {
+      // non-fatal: the next full load re-syncs this from scratch
+    }
+
+    setAllOwners((prev) =>
+      prev.map((o) =>
+        o.breakdownId !== owner.breakdownId
+          ? o
+          : { ...o, target: totalPlan, weeks: o.weeks.map((w) => (w.id === weekId ? { ...w, ...weekPatch, plan: value } : w)) }
+      )
+    );
   }
 
   async function toggleOwnerStatus(owner: OwnerRow) {
@@ -876,7 +1005,9 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
   function addOwnerCard() {
     const key = `owner-${ownerSeq}`;
     setOwnerSeq((n) => n + 1);
-    setOwnerCards((prev) => [...prev, { key, employeeId: '', query: '', plans: Array.from({ length: weekCount }, () => 1) }]);
+    // Same 1-visit-per-week default as before objectives existed, put on Collection.
+    const grid = OBJECTIVES.map((o) => Array.from({ length: weekCount }, () => (o.value === 1 ? 1 : 0)));
+    setOwnerCards((prev) => [...prev, { key, employeeId: '', query: '', grid, collapsed: false }]);
   }
   function removeOwnerCard(key: string) {
     setOwnerCards((prev) => prev.filter((c) => c.key !== key));
@@ -897,10 +1028,32 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
     if (!q) return [];
     return regionEmployees.filter((e) => e.name.toLowerCase().includes(q)).slice(0, 30);
   }
-  function setCardPlan(key: string, weekIdx: number, value: number) {
-    setOwnerCards((prev) => prev.map((c) => (c.key === key ? { ...c, plans: c.plans.map((p, i) => (i === weekIdx ? value : p)) } : c)));
+  function setCardCell(key: string, objIdx: number, weekIdx: number, value: number) {
+    const v = Math.max(0, Math.floor(Number(value) || 0));
+    setOwnerCards((prev) =>
+      prev.map((c) =>
+        c.key !== key ? c : { ...c, grid: c.grid.map((row, oi) => (oi !== objIdx ? row : row.map((p, wi) => (wi === weekIdx ? v : p)))) }
+      )
+    );
   }
-  const totalPlanned = useMemo(() => ownerCards.reduce((s, c) => s + c.plans.reduce((a, b) => a + (Number(b) || 0), 0), 0), [ownerCards]);
+  function toggleCardCollapsed(key: string) {
+    setOwnerCards((prev) => prev.map((c) => (c.key === key ? { ...c, collapsed: !c.collapsed } : c)));
+  }
+  function copyWeek1ToAll(key: string) {
+    setOwnerCards((prev) => prev.map((c) => (c.key !== key ? c : { ...c, grid: c.grid.map((row) => row.map(() => row[0])) })));
+  }
+  function applyPlanToAllOwners(key: string) {
+    setOwnerCards((prev) => {
+      const source = prev.find((c) => c.key === key);
+      if (!source) return prev;
+      return prev.map((c) => (c.key === key ? c : { ...c, grid: source.grid.map((row) => [...row]) }));
+    });
+  }
+  const totalPlanned = useMemo(() => ownerCards.reduce((s, c) => s + cardTotal(c), 0), [ownerCards]);
+  const objectiveTotals = useMemo(
+    () => OBJECTIVES.map((_, oi) => ownerCards.reduce((s, c) => s + c.grid[oi].reduce((a, b) => a + (Number(b) || 0), 0), 0)),
+    [ownerCards]
+  );
 
   /**
    * Bind one or more lookups via the raw Dataverse client's @odata.bind form.
@@ -1001,7 +1154,8 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
       const rangeYear = wizContextYear ?? new Date().getFullYear();
       const rangeMonth = wizContextMonth ?? new Date().getMonth() + 1;
       for (const card of ownerCards) {
-        const target = card.plans.reduce((a, b) => a + (Number(b) || 0), 0);
+        const weekTotals = cardWeekTotals(card);
+        const target = cardTotal(card);
 
         // 1) Create the breakdown with plain fields only — see bindLookups'
         //    comment for why the two lookups below are kept out of this call.
@@ -1036,9 +1190,11 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
         }
 
         // 3) Same split for each week: plain fields first, then bind the
-        //    breakdown lookup separately, then verify by re-reading.
+        //    breakdown lookup separately, then verify by re-reading. Each
+        //    week's plan is the sum of its objectives; every objective > 0
+        //    then gets its own cfm_planweekobjective child under the week.
         const weekResults = await Promise.all(
-          card.plans.map(async (plan, i) => {
+          weekTotals.map(async (plan, i) => {
             const w = i + 1;
             const range = monthWeekRange(rangeYear, rangeMonth, w);
             const weekBody: Record<string, unknown> = {
@@ -1055,11 +1211,27 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
             const weekBound = await bindLookups(WEEK_TABLE, weekId, {
               cfm_KPIAchievementBreakdown: `/stf_kpiachievmentbreakdowns(${breakdownId})`,
             });
-            return { success: weekBound };
+            if (!weekBound) return { success: false };
+            try {
+              await Promise.all(
+                OBJECTIVES.map((o, oi) => {
+                  const n = Number(card.grid[oi][i]) || 0;
+                  return n > 0 ? createWeekObjective(weekId, w, o.value, n) : Promise.resolve('');
+                })
+              );
+            } catch (e) {
+              return { success: false, error: e instanceof Error ? e.message : undefined };
+            }
+            return { success: true };
           })
         );
-        const failed = weekResults.filter((r) => !r.success).length;
-        if (failed) throw new Error(`${failed} of ${card.plans.length} week(s) failed to save.`);
+        const failedWeeks = weekResults.filter((r) => !r.success);
+        if (failedWeeks.length) {
+          const detail = failedWeeks.find((r) => 'error' in r && r.error);
+          throw new Error(
+            `${failedWeeks.length} of ${weekTotals.length} week(s) failed to save.` + (detail && 'error' in detail ? ` ${detail.error}` : '')
+          );
+        }
 
         // Verify the weeks actually landed against this breakdown — same
         // "trust a fresh read, not the write response" reasoning as commitPlan.
@@ -1073,9 +1245,9 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
             }),
           'Could not verify saved weeks.'
         );
-        if (savedWeeks.length < card.plans.length) {
+        if (savedWeeks.length < weekTotals.length) {
           throw new Error(
-            `Only ${savedWeeks.length} of ${card.plans.length} week(s) actually linked to this task owner's breakdown — check field permissions and retry.`
+            `Only ${savedWeeks.length} of ${weekTotals.length} week(s) actually linked to this task owner's breakdown — check field permissions and retry.`
           );
         }
       }
@@ -1351,6 +1523,7 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
                                     const draftPlan = Number(planValue(w)) || 0;
                                     const prog = draftPlan > 0 ? Math.min(100, (w.actual / draftPlan) * 100) : 0;
                                     const locked = weekHasEnded(o.year, o.month, w.number);
+                                    const hasObjectives = Object.keys(w.objectives).length > 0;
                                     return (
                                       <div className="vp-wk" key={w.id}>
                                         <div className="vp-wtitle">Week {w.number}</div>
@@ -1361,8 +1534,14 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
                                               type="number"
                                               min={0}
                                               value={planValue(w)}
-                                              disabled={locked}
-                                              title={locked ? 'Locked — this week’s period has ended.' : undefined}
+                                              disabled={locked || hasObjectives}
+                                              title={
+                                                locked
+                                                  ? 'Locked — this week’s period has ended.'
+                                                  : hasObjectives
+                                                    ? 'Sum of this week’s objectives — edit them below.'
+                                                    : undefined
+                                              }
                                               onChange={(e) => setPlanDrafts((prev) => ({ ...prev, [w.id]: e.target.value }))}
                                               onBlur={() => commitPlan(o, w)}
                                             />
@@ -1380,6 +1559,24 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
                                         </div>
                                         <div className="vp-wbar">
                                           <span style={{ width: `${prog}%` }}></span>
+                                        </div>
+                                        <div className="vp-wk-objs">
+                                          {OBJECTIVES.map((ob) => (
+                                            <label className="vp-wk-obj" key={ob.value}>
+                                              <span>{ob.label}</span>
+                                              <input
+                                                type="number"
+                                                min={0}
+                                                value={objectiveValue(w, ob.value)}
+                                                disabled={locked}
+                                                onChange={(e) => {
+                                                  const v = e.target.value;
+                                                  setPlanDrafts((prev) => ({ ...prev, [objectiveDraftKey(w.id, ob.value)]: v }));
+                                                }}
+                                                onBlur={() => commitObjective(o, w, ob.value)}
+                                              />
+                                            </label>
+                                          ))}
                                         </div>
                                         {cellState[key] === 'saving' && <Icon className="fa-solid fa-spinner fa-spin vp-cell-ico" />}
                                         {cellState[key] === 'saved' && <Icon className="fa-solid fa-check vp-cell-ico vp-ok" />}
@@ -1454,8 +1651,8 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
             <div className={`vp-step${wizStep === 2 ? ' active' : ''}`}>
               <div className="vp-scircle">2</div>
               <div className="vp-stext">
-                <b>Add visit plan</b>
-                <span>Owners &amp; weeks</span>
+                <b>Visit plan</b>
+                <span>Owners, weeks &amp; objectives</span>
               </div>
             </div>
           </div>
@@ -1541,8 +1738,19 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
                   <div>
                     <label>Number of weeks</label>
                     <div className="vp-weeks-ctl">
+                      {/* Fixed at 4 — weeks map to the month's fixed day ranges
+                          that Visits/VisitAudit bucket actuals into. */}
+                      <button disabled title="Weeks are fixed to the month's 4 day ranges">−</button>
                       <div className="vp-weeks-val">{weekCount}</div>
+                      <button disabled title="Weeks are fixed to the month's 4 day ranges">+</button>
                     </div>
+                  </div>
+                  <div className="vp-obj-chips">
+                    {OBJECTIVES.map((o, oi) => (
+                      <span className="vp-wchip" key={o.value}>
+                        {o.label} · <b>{fmtNum(objectiveTotals[oi])}</b>
+                      </span>
+                    ))}
                   </div>
                   <div className="vp-total-planned">
                     <div className="vp-lbl">Total planned visits</div>
@@ -1550,55 +1758,115 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
                   </div>
                 </div>
 
-                {ownerCards.map((card) => (
-                  <div className="vp-owner-card" key={card.key}>
-                    <button className="vp-del" title="Remove" onClick={() => removeOwnerCard(card.key)}>
-                      <Icon className="fa-solid fa-trash" />
-                    </button>
-                    <label>Task owner</label>
-                    <div className="acc-combo vp-owner-combo">
-                      <input
-                        type="text"
-                        placeholder="Search task owner…"
-                        name={`cn-owner-search-nofill-${card.key}`}
-                        autoComplete="new-password"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck={false}
-                        value={card.query}
-                        onChange={(e) => setCardQuery(card.key, e.target.value)}
-                        onFocus={() => setEmployeePickerOpen(card.key)}
-                        onBlur={() => setTimeout(() => setEmployeePickerOpen((open) => (open === card.key ? null : open)), 150)}
-                      />
-                      {employeePickerOpen === card.key && card.query.trim() && (
-                        <div className="acc-combo-list">
-                          {employeeMatches(card.query).length === 0 ? (
-                            <div className="acc-combo-empty">No matches.</div>
-                          ) : (
-                            employeeMatches(card.query).map((e) => (
-                              <div key={e.id} className="acc-combo-item" onMouseDown={(ev) => ev.preventDefault()} onClick={() => pickCardEmployee(card.key, e)}>
-                                {e.name}
-                                {e.region && <small>{e.region === 'KSA' ? 'KSA' : 'Egypt'}</small>}
+                {ownerCards.map((card) => {
+                  const weekTotals = cardWeekTotals(card);
+                  return (
+                    <div className="vp-owner-card" key={card.key}>
+                      <div className="vp-oc-head">
+                        <button className="vp-oc-caret" title={card.collapsed ? 'Expand' : 'Collapse'} onClick={() => toggleCardCollapsed(card.key)}>
+                          <Icon className={`fa-solid ${card.collapsed ? 'fa-chevron-right' : 'fa-chevron-down'}`} />
+                        </button>
+                        <div className="vp-oc-owner">
+                          <label>Task owner</label>
+                          <div className="acc-combo vp-owner-combo">
+                            <input
+                              type="text"
+                              placeholder="Search task owner…"
+                              name={`cn-owner-search-nofill-${card.key}`}
+                              autoComplete="new-password"
+                              autoCorrect="off"
+                              autoCapitalize="off"
+                              spellCheck={false}
+                              value={card.query}
+                              onChange={(e) => setCardQuery(card.key, e.target.value)}
+                              onFocus={() => setEmployeePickerOpen(card.key)}
+                              onBlur={() => setTimeout(() => setEmployeePickerOpen((open) => (open === card.key ? null : open)), 150)}
+                            />
+                            {employeePickerOpen === card.key && card.query.trim() && (
+                              <div className="acc-combo-list">
+                                {employeeMatches(card.query).length === 0 ? (
+                                  <div className="acc-combo-empty">No matches.</div>
+                                ) : (
+                                  employeeMatches(card.query).map((e) => (
+                                    <div key={e.id} className="acc-combo-item" onMouseDown={(ev) => ev.preventDefault()} onClick={() => pickCardEmployee(card.key, e)}>
+                                      {e.name}
+                                      {e.region && <small>{e.region === 'KSA' ? 'KSA' : 'Egypt'}</small>}
+                                    </div>
+                                  ))
+                                )}
                               </div>
-                            ))
-                          )}
+                            )}
+                          </div>
+                        </div>
+                        <div className="vp-rowtotal">
+                          <div className="vp-lbl">Owner total</div>
+                          <div className="vp-num">{fmtNum(cardTotal(card))}</div>
+                        </div>
+                        <button className="vp-del" title="Remove" onClick={() => removeOwnerCard(card.key)}>
+                          <Icon className="fa-solid fa-trash" />
+                        </button>
+                      </div>
+
+                      {!card.collapsed && (
+                        <div className="vp-obj-body">
+                          <div className="vp-obj-scroll">
+                            <table className="vp-obj-grid">
+                              <thead>
+                                <tr>
+                                  <th>Objective</th>
+                                  {weekTotals.map((_, wi) => (
+                                    <th key={wi}>Week {wi + 1}</th>
+                                  ))}
+                                  <th>Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {OBJECTIVES.map((o, oi) => (
+                                  <tr key={o.value}>
+                                    <td className="vp-obj-name">{o.label}</td>
+                                    {card.grid[oi].map((v, wi) => (
+                                      <td key={wi}>
+                                        <div className={`vp-stepper${v > 0 ? ' on' : ''}`}>
+                                          <button onClick={() => setCardCell(card.key, oi, wi, v - 1)} disabled={v <= 0}>
+                                            −
+                                          </button>
+                                          <input type="number" min={0} value={v} onChange={(e) => setCardCell(card.key, oi, wi, Number(e.target.value))} />
+                                          <button onClick={() => setCardCell(card.key, oi, wi, v + 1)}>+</button>
+                                        </div>
+                                      </td>
+                                    ))}
+                                    <td className="vp-obj-total">{fmtNum(card.grid[oi].reduce((a, b) => a + (Number(b) || 0), 0))}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                              <tfoot>
+                                <tr>
+                                  <td className="vp-obj-name vp-obj-foot">Week target</td>
+                                  {weekTotals.map((t, wi) => (
+                                    <td key={wi}>
+                                      <div className="vp-wk-target">{fmtNum(t)}</div>
+                                    </td>
+                                  ))}
+                                  <td className="vp-obj-total vp-obj-grand">{fmtNum(cardTotal(card))}</td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+                          <div className="vp-obj-actions">
+                            <button className="vp-obj-btn" onClick={() => copyWeek1ToAll(card.key)}>
+                              Copy Week 1 to all weeks
+                            </button>
+                            {ownerCards.length > 1 && (
+                              <button className="vp-obj-btn" onClick={() => applyPlanToAllOwners(card.key)}>
+                                Apply this plan to all owners
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
-                    <div className="vp-wk-inputs">
-                      {card.plans.map((p, wi) => (
-                        <div className="vp-wk2" key={wi}>
-                          <small>Week {wi + 1}</small>
-                          <input type="number" min={0} value={p} onChange={(e) => setCardPlan(card.key, wi, Number(e.target.value) || 0)} />
-                        </div>
-                      ))}
-                      <div className="vp-rowtotal">
-                        <div className="vp-lbl">Row total</div>
-                        <div className="vp-num">{fmtNum(card.plans.reduce((a, b) => a + (Number(b) || 0), 0))}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <button className="vp-add-owner-btn" onClick={addOwnerCard}>
                   ＋ Add task owner
                 </button>

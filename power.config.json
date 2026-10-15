@@ -123,6 +123,10 @@
           "entitySetName": "cfm_companymonthlybalanceses",
           "logicalName": "cfm_companymonthlybalances",
           "isHidden": false
+        },
+        "planweekobjectives": {
+          "entitySetName": "cfm_planweekobjectives",
+          "logicalName": "cfm_planweekobjective"
         }
       },
       "environmentVariableName": ""

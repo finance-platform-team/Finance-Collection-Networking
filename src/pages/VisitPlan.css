@@ -98,6 +98,13 @@
 .vp-cell-ico{position:absolute;top:10px;right:10px;font-size:11px;color:var(--muted)}
 .vp-cell-ico.vp-ok{color:var(--ok)}
 .vp-cell-ico.vp-bad{color:var(--bad)}
+/* per-objective targets under each week card — Plan above is their sum */
+.vp-wk-objs{display:flex;flex-direction:column;gap:5px;margin-top:11px;padding-top:10px;border-top:1px dashed var(--line)}
+.vp-wk-obj{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--muted)}
+.vp-wk-obj input{width:52px;height:26px;text-align:center;font-size:12.5px;font-weight:600;border:1px solid var(--line);
+  border-radius:6px;background:#fbf8f2;color:var(--ink);box-sizing:border-box}
+.vp-wk-obj input:focus{outline:none;border-color:var(--gold)}
+.vp-wk-obj input:disabled{background:var(--bg);color:var(--muted)}
 
 /* chart panel */
 .vp-chart-panel{padding:4px 0 16px;margin-top:16px}
@@ -160,11 +167,14 @@
 .vp-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
 .vp-row2 label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--brown)}
 
-.vp-wk-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
+.vp-wk-head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.vp-obj-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;justify-content:center;align-self:center;margin-top:22px}
+.vp-obj-chips b{color:var(--brown)}
 .vp-wk-head label{font-size:13px;font-weight:600;color:var(--brown);display:block;margin-bottom:8px}
 .vp-weeks-ctl{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:fit-content}
 .vp-weeks-ctl button{width:34px;height:34px;border:none;background:var(--bg);font-size:16px;cursor:pointer;color:var(--ink)}
-.vp-weeks-ctl button:hover{background:var(--goldbg)}
+.vp-weeks-ctl button:hover:not(:disabled){background:var(--goldbg)}
+.vp-weeks-ctl button:disabled{color:var(--muted);cursor:default;opacity:.6}
 .vp-weeks-val{width:44px;text-align:center;font-size:15px;font-weight:700}
 .vp-total-planned{text-align:right}
 .vp-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
@@ -192,6 +202,40 @@
 .vp-rowtotal{min-width:104px;background:var(--goldbg);border-radius:8px;padding:7px 11px;text-align:center}
 .vp-rowtotal .vp-lbl{color:var(--gold)}
 .vp-rowtotal .vp-num{font-size:16px;color:var(--gold)}
+.vp-owner-card{padding:0}
+.vp-oc-head{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 10px;background:#fbf8f2;border-radius:12px 12px 0 0}
+.vp-oc-head:last-child{border-radius:12px}
+.vp-owner-card .vp-oc-head .vp-del{position:static}
+.vp-oc-caret{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:6px;align-self:flex-end;margin-bottom:6px}
+.vp-oc-owner{flex:1;min-width:0}
+.vp-obj-body{padding:4px 14px 14px;border-top:1px solid var(--line)}
+.vp-obj-scroll{overflow-x:auto}
+.vp-obj-grid{width:100%;border-collapse:separate;border-spacing:6px 6px;min-width:620px}
+.vp-obj-grid th{font-size:10.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;
+  text-align:center;padding:8px 0 2px;background:none;border:none}
+.vp-obj-grid th:first-child{text-align:left}
+.vp-obj-grid td{padding:0;border:none;background:none}
+.vp-obj-name{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;padding-right:10px!important}
+.vp-obj-total{text-align:center;font-size:13px;color:var(--muted);width:48px}
+.vp-obj-grid tfoot td{padding-top:8px;border-top:1px dashed var(--line)}
+.vp-obj-foot{font-size:11px!important;font-weight:700!important;color:var(--brown)!important;text-transform:uppercase;letter-spacing:.06em}
+.vp-obj-grand{font-size:16px;font-weight:800;color:var(--gold)}
+.vp-stepper{display:flex;align-items:center;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--bg);min-width:110px}
+.vp-stepper.on{background:var(--card);border-color:var(--hover-border, var(--line))}
+.vp-stepper button{width:30px;height:100%;border:none;background:none;color:var(--muted);font-size:15px;cursor:pointer;flex-shrink:0}
+.vp-stepper button:hover:not(:disabled){color:var(--brown)}
+.vp-stepper button:disabled{opacity:.4;cursor:default}
+.vp-stepper input{flex:1;min-width:0;width:100%;height:100%;border:none;background:none;text-align:center;font-size:14px;
+  color:var(--muted);-moz-appearance:textfield;appearance:textfield}
+.vp-stepper input::-webkit-outer-spin-button,.vp-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.vp-stepper.on input{color:var(--ink);font-weight:700}
+.vp-stepper input:focus{outline:none}
+.vp-wk-target{height:38px;display:flex;align-items:center;justify-content:center;background:var(--goldbg);border-radius:8px;
+  font-size:15px;font-weight:800;color:var(--brown)}
+.vp-obj-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.vp-obj-btn{height:34px;padding:0 13px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);
+  font-size:12.5px;cursor:pointer;font-family:'Inter'}
+.vp-obj-btn:hover{border-color:var(--gold);background:var(--goldbg)}
 .vp-add-owner-btn{width:100%;margin-top:14px;height:42px;border:1px dashed var(--gold);background:var(--goldbg);
   color:var(--brown);border-radius:10px;font-weight:600;cursor:pointer;font-family:'Inter'}
 .vp-add-owner-btn:hover{background:rgba(165,132,91,.28)}
@@ -210,6 +254,9 @@
 @media(max-width:640px){
   .vp-row2{grid-template-columns:1fr}
   .vp-modal{padding:1.4rem 1.2rem 1rem}
+  .vp-oc-head{flex-wrap:wrap}
+  .vp-oc-owner{flex-basis:calc(100% - 40px)}
+  .vp-obj-chips{justify-content:flex-start;margin-top:0}
   /* The name|bar|value|pct flex row doesn't fit a phone width — reflow into
      a small grid: name+pct on top, the bar spanning full width below it,
      then the value line, instead of everything squeezing onto one row and
@@ -234,6 +281,8 @@
 :root[data-theme="dark"] .vp-owner-card>select,
 :root[data-theme="dark"] .vp-multiselect-btn,
 :root[data-theme="dark"] .vp-owner-combo input,
+:root[data-theme="dark"] .vp-wk-obj input,
+:root[data-theme="dark"] .vp-oc-head,
 :root[data-theme="dark"] .vp-wk2 input{background:#1c2118;color:var(--ink);border-color:var(--line)}
 :root[data-theme="dark"] .vp-field select:disabled,
 :root[data-theme="dark"] .vp-row2 select:disabled{background:var(--bg)}
