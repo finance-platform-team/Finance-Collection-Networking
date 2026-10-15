@@ -15,7 +15,13 @@ import { escapeForCsv, downloadCsv } from '../lib/csvExport';
 import type { Region } from '../lib/useRegion';
 import { fetchAccountTargetSum, fetchVisitPlanTargetSum } from '../lib/targetComparison';
 import TargetFlagCard from '../components/TargetFlagCard';
+import StakeholdersDrawer from '../components/StakeholdersDrawer';
+import { fetchStakeholdersByAccount, initials, type Stakeholder } from '../lib/stakeholders';
 import './Accounts.css';
+
+const NO_STAKEHOLDERS: Stakeholder[] = [];
+/** How many avatars the Stakeholders cell shows before collapsing the rest into "+N". */
+const AVATAR_LIMIT = 3;
 
 const TYPE_INSURANCE: Cr301_accountscr301_accounttype = 983080002;
 const TYPE_DIRECT: Cr301_accountscr301_accounttype = 766340001;
@@ -174,6 +180,12 @@ export default function AccountsPage({ region }: AccountsPageProps) {
   const [toastOn, setToastOn] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  const [stakeholdersByAccount, setStakeholdersByAccount] = useState<Map<string, Stakeholder[]>>(new Map());
+  const [stakeholdersState, setStakeholdersState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [shFilter, setShFilter] = useState<'' | 'with' | 'missing'>('');
+  const [shAccountId, setShAccountId] = useState<string | null>(null);
+  const [shAddMode, setShAddMode] = useState(false);
+
   const [flagLoading, setFlagLoading] = useState(true);
   const [flagAccountTarget, setFlagAccountTarget] = useState<number | null>(null);
   const [flagVisitPlanTarget, setFlagVisitPlanTarget] = useState<number | null>(null);
@@ -219,6 +231,27 @@ export default function AccountsPage({ region }: AccountsPageProps) {
     } catch {
       /* agent names are a display nicety — a failure here shouldn't block the page */
     }
+  }
+
+  async function loadStakeholders() {
+    try {
+      setStakeholdersByAccount(await fetchStakeholdersByAccount());
+      setStakeholdersState('ready');
+    } catch {
+      setStakeholdersState('error');
+    }
+  }
+
+  function openStakeholders(accountId: string) {
+    setDrawerOpen(false);
+    setBulkDrawerOpen(false);
+    setShAddMode(!(stakeholdersByAccount.get(accountId)?.length));
+    setShAccountId(accountId);
+  }
+
+  async function handleStakeholdersChanged(message: string) {
+    await loadStakeholders();
+    showToast(message);
   }
 
   async function loadVisitsFor(accountId: string) {
@@ -325,6 +358,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
     // Independent loads: a classification-load failure never blocks the grid.
     loadClasses();
     loadAgents();
+    loadStakeholders();
     load();
   }, []);
 
@@ -364,13 +398,26 @@ export default function AccountsPage({ region }: AccountsPageProps) {
       if (q && !`${a.name} ${a.code}`.toLowerCase().includes(q)) return false;
       if (clsFilter && a.cls !== clsFilter) return false;
       if (typeFilter && String(a.type) !== typeFilter) return false;
+      if (shFilter) {
+        const has = (stakeholdersByAccount.get(a.id)?.length || 0) > 0;
+        if (shFilter === 'with' ? !has : has) return false;
+      }
       return true;
     });
-  }, [regionRows, query, clsFilter, typeFilter]);
+  }, [regionRows, query, clsFilter, typeFilter, shFilter, stakeholdersByAccount]);
 
   useEffect(() => {
     setPage(1);
-  }, [query, clsFilter, typeFilter, region]);
+  }, [query, clsFilter, typeFilter, shFilter, region]);
+
+  // Coverage is measured over the region's accounts (not the stakeholder filter's
+  // own result), so clicking the KPI to filter doesn't change the number it shows.
+  const missingStakeholders = useMemo(
+    () => regionRows.filter((a) => !(stakeholdersByAccount.get(a.id)?.length)).length,
+    [regionRows, stakeholdersByAccount]
+  );
+
+  const shAccount = shAccountId ? accounts.find((a) => a.id === shAccountId) || null : null;
 
   const totalPages = Math.max(1, Math.ceil(view.length / pageSize));
   const clampedPage = Math.min(page, totalPages);
@@ -417,6 +464,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
     setBulkError('');
     setBulkTarget('');
     setDrawerOpen(false);
+    setShAccountId(null);
     setBulkDrawerOpen(true);
   }
 
@@ -499,6 +547,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
   function openDrawer(row?: AccountRow) {
     setFormError('');
     setBulkDrawerOpen(false);
+    setShAccountId(null);
     if (row) {
       setEditId(row.id);
       setFormName(row.name === '—' ? '' : row.name);
@@ -640,8 +689,17 @@ export default function AccountsPage({ region }: AccountsPageProps) {
   }
 
   function exportCsv() {
-    const header = ['Account Name', 'Account Code', 'Classification', 'Type', 'Region', 'Target Visit', 'Actual Visits'];
-    const rows = view.map((a) => [a.name, a.code === '—' ? '0' : a.code, a.cls, a.typeName, a.regionName || '—', a.target, a.actual]);
+    const header = ['Account Name', 'Account Code', 'Classification', 'Type', 'Region', 'Stakeholders', 'Target Visit', 'Actual Visits'];
+    const rows = view.map((a) => [
+      a.name,
+      a.code === '—' ? '0' : a.code,
+      a.cls,
+      a.typeName,
+      a.regionName || '—',
+      (stakeholdersByAccount.get(a.id) || NO_STAKEHOLDERS).map((s) => s.name).join('; '),
+      a.target,
+      a.actual,
+    ]);
     downloadCsv('accounts.csv', [header, ...rows].map((r) => r.map(escapeForCsv).join(',')));
   }
 
@@ -710,6 +768,36 @@ export default function AccountsPage({ region }: AccountsPageProps) {
               {loading ? <>&nbsp;</> : `${kpis.targetSum > 0 ? Math.round((kpis.actualSum / kpis.targetSum) * 100) : 0}% of target`}
             </div>
           </div>
+          <div
+            className={`kpi-card kpi-clickable${!loading && stakeholdersState === 'ready' && missingStakeholders > 0 ? ' kpi-warn' : ''}${shFilter === 'missing' ? ' sh-kpi-active' : ''}`}
+            role="button"
+            tabIndex={0}
+            title={shFilter === 'missing' ? 'Show all accounts' : 'Show only accounts with no stakeholders'}
+            onClick={() => setShFilter((f) => (f === 'missing' ? '' : 'missing'))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setShFilter((f) => (f === 'missing' ? '' : 'missing'));
+              }
+            }}
+          >
+            <div className="kpi-top">
+              <span className={`kpi-icon ${missingStakeholders > 0 ? 'kpi-icon-warn' : 'kpi-icon-ok'}`}>
+                <Icon className="fa-solid fa-address-book" />
+              </span>
+              <span className="kpi-label">Missing stakeholders</span>
+            </div>
+            <div className="kpi-value">{loading || stakeholdersState === 'loading' ? '—' : stakeholdersState === 'error' ? '!' : missingStakeholders}</div>
+            <div className="kpi-context">
+              {loading || stakeholdersState === 'loading'
+                ? ' '
+                : stakeholdersState === 'error'
+                  ? 'Could not load stakeholders'
+                  : shFilter === 'missing'
+                    ? 'Filtered — click to clear'
+                    : `${regionRows.length - missingStakeholders} of ${regionRows.length} accounts covered`}
+            </div>
+          </div>
         </div>
 
         {selectedIds.size > 0 && (
@@ -748,6 +836,11 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                 </option>
               ))}
             </select>
+            <select className="acc-f" value={shFilter} onChange={(e) => setShFilter(e.target.value as '' | 'with' | 'missing')}>
+              <option value="">All Stakeholders</option>
+              <option value="with">With stakeholders</option>
+              <option value="missing">Missing stakeholders</option>
+            </select>
             <div className="acc-date-range">
               <input
                 type="date"
@@ -780,6 +873,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                 <th>Classification</th>
                 <th>Type</th>
                 <th>Region</th>
+                <th>Stakeholders</th>
                 <th>Target vs Actual</th>
               </tr>
             </thead>
@@ -787,7 +881,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 8 }).map((__, j) => (
+                    {Array.from({ length: 9 }).map((__, j) => (
                       <td key={j}>
                         <div className="acc-skel"></div>
                       </td>
@@ -796,7 +890,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                 ))
               ) : loadError ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-triangle-exclamation" />
                       Could not load accounts.
@@ -807,7 +901,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                 </tr>
               ) : pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-inbox" />
                       No accounts match your filters.
@@ -854,6 +948,40 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                           </span>
                         </td>
                         <td>{a.regionName || '—'}</td>
+                        <td className="sh-cell" onClick={(e) => e.stopPropagation()}>
+                          {stakeholdersState === 'loading' ? (
+                            <div className="acc-skel" style={{ width: 70 }}></div>
+                          ) : stakeholdersState === 'error' ? (
+                            <span className="sh-cell-na">—</span>
+                          ) : (() => {
+                            const list = stakeholdersByAccount.get(a.id) || NO_STAKEHOLDERS;
+                            if (list.length === 0) {
+                              return (
+                                <button type="button" className="sh-add-chip" onClick={() => openStakeholders(a.id)} title="This account has no stakeholders — add one">
+                                  <Icon className="fa-solid fa-user-plus" /> Add
+                                </button>
+                              );
+                            }
+                            return (
+                              <button
+                                type="button"
+                                className="sh-stack"
+                                onClick={() => openStakeholders(a.id)}
+                                title={list.map((s) => `${s.name}${s.roleLabel ? ` — ${s.roleLabel}` : ''}`).join('\n')}
+                              >
+                                <span className="sh-stack-avatars">
+                                  {list.slice(0, AVATAR_LIMIT).map((s) => (
+                                    <span key={s.id} className="sh-mini-avatar">
+                                      {initials(s.name)}
+                                    </span>
+                                  ))}
+                                  {list.length > AVATAR_LIMIT && <span className="sh-mini-avatar sh-mini-more">+{list.length - AVATAR_LIMIT}</span>}
+                                </span>
+                                <span className="sh-stack-count">{list.length}</span>
+                              </button>
+                            );
+                          })()}
+                        </td>
                         <td className="acc-ta">
                           {(() => {
                             const rawPct = a.target > 0 ? Math.round((a.actual / a.target) * 100) : 0;
@@ -882,7 +1010,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                       </tr>
                       {expanded && (
                         <tr className="acc-expand-row">
-                          <td colSpan={8}>
+                          <td colSpan={9}>
                             {visitState === 'loading' ? (
                               <div className="acc-state">
                                 <Icon className="fa-solid fa-spinner fa-spin" /> Loading visits…
@@ -977,12 +1105,21 @@ export default function AccountsPage({ region }: AccountsPageProps) {
       </div>
 
       <div
-        className={`acc-scrim${drawerOpen || bulkDrawerOpen ? ' on' : ''}`}
+        className={`acc-scrim${drawerOpen || bulkDrawerOpen || shAccountId ? ' on' : ''}`}
         onClick={() => {
           closeDrawer();
           closeBulkDrawer();
+          setShAccountId(null);
         }}
       ></div>
+      <StakeholdersDrawer
+        open={!!shAccountId}
+        account={shAccount}
+        stakeholders={(shAccountId && stakeholdersByAccount.get(shAccountId)) || NO_STAKEHOLDERS}
+        startInAddMode={shAddMode}
+        onClose={() => setShAccountId(null)}
+        onChanged={handleStakeholdersChanged}
+      />
       <aside className={`acc-drawer${drawerOpen ? ' on' : ''}`}>
         <div className="acc-dhead">
           <h2>{editId ? 'Edit Account' : 'Add Account'}</h2>

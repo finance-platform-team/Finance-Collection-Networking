@@ -44,8 +44,8 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Visits',
     items: [
       { key: 'visit-plan', icon: 'fa-bullseye', label: 'Visits — Planned & Actual' },
-      { key: 'visits', icon: 'fa-location-dot', label: 'Visits Log' },
-      { key: 'visit-audit', icon: 'fa-magnifying-glass-chart', label: 'Visit Audit' },
+      { key: 'visits', icon: 'fa-location-dot', label: 'Activities Log' },
+      { key: 'visit-audit', icon: 'fa-magnifying-glass-chart', label: 'Activity Audit' },
       { key: 'accounts', icon: 'fa-building-shield', label: 'Accounts' },
       { key: 'agents', icon: 'fa-user-tie', label: 'Agents' },
     ],

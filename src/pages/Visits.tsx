@@ -10,13 +10,16 @@ import { Cfm_collectionplanweeksService } from '../generated/services/Cfm_collec
 import { Pm_kpiachievmentsService } from '../generated/services/Pm_kpiachievmentsService';
 import { Strategy_kpisesService } from '../generated/services/Strategy_kpisesService';
 import { Cr301_visitscr301_visitstatus } from '../generated/models/Cr301_visitsModel';
-import type { Cr301_visitsBase, Cr301_visitscr301_visittype } from '../generated/models/Cr301_visitsModel';
+import type { Cr301_visitsBase, Cr301_visitscr301_visittype, Cr301_visitscfm_action } from '../generated/models/Cr301_visitsModel';
 import type { Cfm_collectionplanweeks } from '../generated/models/Cfm_collectionplanweeksModel';
 import type { Strategy_kpises } from '../generated/models/Strategy_kpisesModel';
 import { operationErrorMessage } from '../lib/errors';
 import { fetchAll } from '../lib/dataverse';
 import { visitStatusClass } from '../lib/visitStatus';
 import { escapeForCsv, downloadCsv } from '../lib/csvExport';
+import { fetchStakeholdersByAccount } from '../lib/stakeholders';
+import type { Stakeholder } from '../lib/stakeholders';
+import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabel } from '../lib/activityOptions';
 import type { Region } from '../lib/useRegion';
 import './Visits.css';
 
@@ -205,7 +208,7 @@ function describeAdjustOutcome(o: AdjustOutcome): string | null {
     case 'no-week':
       return `no Collection Plan Week found for "${o.agentName}"`;
     case 'bad-date':
-      return `invalid visit date`;
+      return `invalid activity date`;
     case 'error':
       return `${o.agentName}: ${o.message}`;
   }
@@ -225,6 +228,21 @@ const VISIT_STATUS_OPTIONS = [
   { value: VISIT_STATUS_CANCELLED, label: 'Cancelled' },
   { value: 766340001, label: 'Partially Closed' },
 ];
+// cfm_action — labels as configured in Dataverse.
+const ACTION_ACHIEVED: Cr301_visitscfm_action = 766340004;
+// cfm_action is a single-select choice, so only one Next Action can be ticked.
+const ACTION_OPTIONS: { value: Cr301_visitscfm_action; label: string }[] = [
+  { value: 766340003, label: 'Schedule Follow-up' },
+  { value: 766340002, label: 'Escalate to Manager' },
+  { value: 766340001, label: 'Send Documentation' },
+  { value: 766340000, label: 'Await Payment' },
+  { value: ACTION_ACHIEVED, label: 'Achieved' },
+];
+/** Due Date / Owner only apply to a follow-through action — not to none or Achieved. */
+function needsFollowThrough(action: string): boolean {
+  return action !== '' && Number(action) !== ACTION_ACHIEVED;
+}
+
 /** Every status except Cancelled counts toward the KPI Actual. */
 function countsTowardActual(status: number): boolean {
   return status !== VISIT_STATUS_CANCELLED;
@@ -272,6 +290,33 @@ async function bindAgent2(visitId: string, agent2Id: string): Promise<boolean> {
   }
 }
 
+// Next Action Owner / Stakeholder Dealt With — nav casing confirmed by the
+// regenerated model. Target tables are assumed (agents / contact persons);
+// a wrong target makes the bind fail, which the re-read below catches.
+const NEXT_ACTION_OWNER_BIND_NAV = 'cfm_NextActionOwner';
+const STAKEHOLDER_BIND_NAV = 'cfm_Stakeholderdealtwith';
+
+/**
+ * Same separate-PATCH-then-re-read approach as bindAgent2, for a lookup that
+ * can also be cleared (targetId = '' unlinks it).
+ */
+async function bindVisitLookup(
+  visitId: string,
+  nav: string,
+  entitySet: string,
+  valueField: '_cfm_nextactionowner_value' | '_cfm_stakeholderdealtwith_value',
+  targetId: string
+): Promise<boolean> {
+  try {
+    const client = getClient(dataSourcesInfo);
+    await client.updateRecordAsync(VISITS_TABLE, visitId, { [`${nav}@odata.bind`]: targetId ? `/${entitySet}(${targetId})` : null });
+    const check = await Cr301_visitsService.get(visitId, { select: [valueField] });
+    return !!check.success && (check.data?.[valueField] || '').toLowerCase() === targetId.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 interface UnmappedVisitFields {
   cfm_tagename?: number;
   cfm_revisitdate?: string;
@@ -313,6 +358,14 @@ interface VisitRow {
   revisit: string;
   notes: string;
   region: 'EG' | 'KSA' | '';
+  objective: number | null;
+  outcome: number | null;
+  action: number | null;
+  dueDate: string;
+  actionOwnerId: string;
+  actionOwner: string;
+  stakeholderId: string;
+  stakeholder: string;
 }
 
 type TypeFilter = '' | 'single' | 'double';
@@ -380,8 +433,14 @@ export default function VisitsPage({ region }: VisitsPageProps) {
   const [formAgent2Id, setFormAgent2Id] = useState('');
   const [agent2Query, setAgent2Query] = useState('');
   const [agent2PickerOpen, setAgent2PickerOpen] = useState(false);
-  const [formRevisit, setFormRevisit] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formObjective, setFormObjective] = useState('');
+  const [formOutcome, setFormOutcome] = useState('');
+  const [formAction, setFormAction] = useState('');
+  const [formDueDate, setFormDueDate] = useState('');
+  const [formActionOwnerId, setFormActionOwnerId] = useState('');
+  const [formStakeholderId, setFormStakeholderId] = useState('');
+  const [stakeholdersByAccount, setStakeholdersByAccount] = useState<Map<string, Stakeholder[]>>(new Map());
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -425,11 +484,22 @@ export default function VisitsPage({ region }: VisitsPageProps) {
             'cfm_tagename',
             'cfm_revisitdate',
             '_cfm_agent2_value',
+            'cfm_objective',
+            'cfm_outcome',
+            'cfm_action',
+            'cfm_duedatenextaction',
+            '_cfm_nextactionowner_value',
+            '_cfm_stakeholderdealtwith_value',
           ],
           filter: `cfm_tagename eq ${TAG_COLLECTION}`,
           orderBy: ['cr301_visitdate desc'],
         }),
       ]);
+
+      // Stakeholder Dealt With options only — a failure here shouldn't block the log.
+      fetchStakeholdersByAccount()
+        .then(setStakeholdersByAccount)
+        .catch(() => setStakeholdersByAccount(new Map()));
 
       if (!accResult.success) {
         throw new Error(operationErrorMessage(accResult.error, 'Could not load companies.'));
@@ -486,6 +556,16 @@ export default function VisitsPage({ region }: VisitsPageProps) {
           revisit: extra.cfm_revisitdate || '',
           notes: r.cr301_notes || '',
           region: agent?.region || '',
+          objective: r.cfm_objective ?? null,
+          outcome: r.cfm_outcome ?? null,
+          action: r.cfm_action ?? null,
+          dueDate: r.cfm_duedatenextaction || '',
+          actionOwnerId: r._cfm_nextactionowner_value || '',
+          actionOwner: r._cfm_nextactionowner_value
+            ? agentMap.get(r._cfm_nextactionowner_value)?.name || fmtVal(r, '_cfm_nextactionowner_value')
+            : '',
+          stakeholderId: r._cfm_stakeholderdealtwith_value || '',
+          stakeholder: r._cfm_stakeholderdealtwith_value ? fmtVal(r, '_cfm_stakeholderdealtwith_value') : '',
         };
       });
 
@@ -560,6 +640,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
     return regionAccountOptions.filter((a) => `${a.name} ${a.code}`.toLowerCase().includes(query));
   }
   function pickCompany(a: AccountOption) {
+    if (a.id !== formAccountId) setFormStakeholderId('');
     setFormAccountId(a.id);
     setCompanyQuery(a.name);
     setCompanyPickerOpen(false);
@@ -599,6 +680,10 @@ export default function VisitsPage({ region }: VisitsPageProps) {
   }, [view]);
 
   const selectedAccount = useMemo(() => accounts.find((a) => a.id === formAccountId) || null, [accounts, formAccountId]);
+  const accountStakeholders = useMemo(
+    () => (formAccountId ? stakeholdersByAccount.get(formAccountId) || [] : []),
+    [stakeholdersByAccount, formAccountId]
+  );
   // Visit Date stays editable on the day the visit was created, then locks —
   // never locked for a brand-new (not-yet-saved) visit.
   const visitDateLocked = !!editId && !!editOriginal?.createdon && isPastCreationDay(editOriginal.createdon);
@@ -620,8 +705,13 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       setFormVisitType(row.isDouble ? 'double' : 'single');
       setFormAgent2Id(row.agent2Id);
       setAgent2Query(row.owner2);
-      setFormRevisit(row.revisit ? row.revisit.substring(0, 10) : '');
       setFormNotes(row.notes);
+      setFormObjective(row.objective == null ? '' : String(row.objective));
+      setFormOutcome(row.outcome == null ? '' : String(row.outcome));
+      setFormAction(row.action == null ? '' : String(row.action));
+      setFormDueDate(row.dueDate ? row.dueDate.substring(0, 10) : '');
+      setFormActionOwnerId(row.actionOwnerId);
+      setFormStakeholderId(row.stakeholderId);
     } else {
       setEditId(null);
       setFormAccountId('');
@@ -633,8 +723,13 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       setFormVisitType('single');
       setFormAgent2Id('');
       setAgent2Query('');
-      setFormRevisit('');
       setFormNotes('');
+      setFormObjective('');
+      setFormOutcome('');
+      setFormAction('');
+      setFormDueDate('');
+      setFormActionOwnerId('');
+      setFormStakeholderId('');
     }
     setCompanyPickerOpen(false);
     setAgentPickerOpen(false);
@@ -657,7 +752,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
     }
     const isDouble = formVisitType === 'double';
     if (isDouble && !formAgent2Id) {
-      setFormError('Task Owner 2 is required for a double visit.');
+      setFormError('Task Owner 2 is required for a double activity.');
       return;
     }
     if (isDouble && formAgent2Id && formAgentId === formAgent2Id) {
@@ -665,9 +760,32 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       return;
     }
     if (parseInt(formStatus, 10) !== VISIT_STATUS_OPEN && !formDate) {
-      setFormError('Visit Date is required once the status is no longer Open.');
+      setFormError('Activity Date is required once the status is no longer Open.');
       return;
     }
+
+    if (!formObjective) {
+      setFormError('Objective is required.');
+      return;
+    }
+    if (!formOutcome) {
+      setFormError('Outcome is required.');
+      return;
+    }
+    if (!formAction) {
+      setFormError('Next Action is required.');
+      return;
+    }
+    if (!formStakeholderId) {
+      setFormError('Stakeholder Dealt With is required.');
+      return;
+    }
+
+    // Next Action only applies once an Outcome is picked; Due Date / Owner are
+    // dropped (and unlinked) once the action no longer needs them.
+    const action = formOutcome ? formAction : '';
+    const followThrough = needsFollowThrough(action);
+    const actionOwnerId = followThrough ? formActionOwnerId : '';
 
     setSaving(true);
     setFormError('');
@@ -684,7 +802,10 @@ export default function VisitsPage({ region }: VisitsPageProps) {
         cr301_notes: formNotes.trim() || null,
         // Not in the generated model — see the module comment above.
         cfm_tagename: TAG_COLLECTION,
-        cfm_revisitdate: formRevisit ? new Date(formRevisit).toISOString() : null,
+        cfm_objective: formObjective ? parseInt(formObjective, 10) : null,
+        cfm_outcome: formOutcome ? parseInt(formOutcome, 10) : null,
+        cfm_action: action ? parseInt(action, 10) : null,
+        cfm_duedatenextaction: followThrough && formDueDate ? new Date(formDueDate).toISOString() : null,
       };
       // Task Owner 2 is NOT put in this body — it's bound separately below
       // (see bindAgent2). Visit Type can't change on edit, so there's no unlink case.
@@ -703,6 +824,15 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       let agent2Saved = true;
       if (isDouble && formAgent2Id && formAgent2Id !== editOriginal?.agent2Id) {
         agent2Saved = !!visitId && (await bindAgent2(visitId, formAgent2Id));
+      }
+      const lookupNotes: string[] = [];
+      if (visitId && actionOwnerId !== (editOriginal?.actionOwnerId || '')) {
+        const ok = await bindVisitLookup(visitId, NEXT_ACTION_OWNER_BIND_NAV, 'cr301_agents', '_cfm_nextactionowner_value', actionOwnerId);
+        if (!ok) lookupNotes.push('Next Action Owner could not be saved');
+      }
+      if (visitId && formStakeholderId !== (editOriginal?.stakeholderId || '')) {
+        const ok = await bindVisitLookup(visitId, STAKEHOLDER_BIND_NAV, 'cr301_contactpersons', '_cfm_stakeholderdealtwith_value', formStakeholderId);
+        if (!ok) lookupNotes.push('Stakeholder Dealt With could not be saved');
       }
 
       // Four directions now, not two: creating an (active) visit increments its
@@ -771,14 +901,17 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       }
 
       if (!agent2Saved) {
-        adjustNotes.unshift('Task Owner 2 could not be linked — open the visit and pick Task Owner 2 again');
+        adjustNotes.unshift('Task Owner 2 could not be linked — open the activity and pick Task Owner 2 again');
       }
 
       setDrawerOpen(false);
       if (adjustNotes.length) {
-        showToast(`${editId ? 'Visit updated' : 'Visit recorded'} — KPI actual not updated (${adjustNotes.join('; ')}).`, 6000);
+        const extra = lookupNotes.length ? ` ${lookupNotes.join('; ')}.` : '';
+        showToast(`${editId ? 'Activity updated' : 'Activity recorded'} — KPI actual not updated (${adjustNotes.join('; ')}).${extra}`, 6000);
+      } else if (lookupNotes.length) {
+        showToast(`${editId ? 'Activity updated' : 'Activity recorded'} — ${lookupNotes.join('; ')}.`, 6000);
       } else {
-        showToast(editId ? 'Visit updated' : 'Visit recorded');
+        showToast(editId ? 'Activity updated' : 'Activity recorded');
       }
       await load();
     } catch (e) {
@@ -789,7 +922,25 @@ export default function VisitsPage({ region }: VisitsPageProps) {
   }
 
   function exportCsv() {
-    const header = ['Task Owner', 'Task Owner 2', 'Company', 'Company Code', 'Visit Date', 'Visit Status', 'Visit Type', 'Revisit Date', 'Comments', 'Created On', 'Region'];
+    const header = [
+      'Task Owner',
+      'Task Owner 2',
+      'Company',
+      'Company Code',
+      'Activity Date',
+      'Activity Status',
+      'Activity Type',
+      'Objective',
+      'Outcome',
+      'Next Action',
+      'Next Action Due Date',
+      'Next Action Owner',
+      'Stakeholder Dealt With',
+      'Revisit Date',
+      'Comments',
+      'Created On',
+      'Region',
+    ];
     const rows = view.map((v) => [
       v.owner,
       v.owner2,
@@ -798,12 +949,18 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       fmtDate(v.date),
       v.statusLabel,
       v.isDouble ? 'Double' : 'Single',
+      optionLabel(OBJECTIVE_OPTIONS, v.objective),
+      optionLabel(OUTCOME_OPTIONS, v.outcome),
+      optionLabel(ACTION_OPTIONS, v.action),
+      fmtDate(v.dueDate),
+      v.actionOwner,
+      v.stakeholder,
       fmtDate(v.revisit),
       v.notes,
       fmtDate(v.createdon),
       v.region === 'KSA' ? 'KSA' : v.region === 'EG' ? 'Egypt' : '—',
     ]);
-    downloadCsv('visits_log.csv', [header, ...rows].map((r) => r.map(escapeForCsv).join(',')));
+    downloadCsv('activities_log.csv', [header, ...rows].map((r) => r.map(escapeForCsv).join(',')));
   }
 
   function pagerButtons() {
@@ -823,12 +980,12 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       <div className="acc-wrap">
         <div className="acc-head">
           <div>
-            <h1 className="acc-title">Visits Log</h1>
-            <div className="acc-sub">Recorded visits — Task Owner · Company · Visit Date · Visit Status · Visit Type · Revisit · Comments</div>
+            <h1 className="acc-title">Activities Log</h1>
+            <div className="acc-sub">Recorded activities — Task Owner · Company · Activity Date · Activity Status · Activity Type · Revisit · Comments</div>
           </div>
           <div className="acc-actions">
             <button className="acc-btn acc-btn-primary" onClick={() => openDrawer()}>
-              <Icon className="fa-solid fa-plus" /> Add Visit
+              <Icon className="fa-solid fa-plus" /> Add Activity
             </button>
             <button className="acc-btn" onClick={exportCsv}>
               <Icon className="fa-solid fa-download" /> Export
@@ -842,7 +999,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
               <span className="kpi-icon kpi-icon-gold">
                 <Icon className="fa-solid fa-clipboard-check" />
               </span>
-              <span className="kpi-label">Total visits</span>
+              <span className="kpi-label">Total activities</span>
             </div>
             <div className="kpi-value">{loading ? '—' : kpis.total}</div>
             <div className="kpi-context">&nbsp;</div>
@@ -866,7 +1023,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
             </div>
             <div className="kpi-value">{loading ? '—' : kpis.open}</div>
             <div className="kpi-context">
-              {loading ? '' : kpis.total > 0 ? `${Math.round((kpis.open / kpis.total) * 100)}% of visits` : '—'}
+              {loading ? '' : kpis.total > 0 ? `${Math.round((kpis.open / kpis.total) * 100)}% of activities` : '—'}
             </div>
           </div>
           <div className="kpi-card kpi-ok">
@@ -878,7 +1035,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
             </div>
             <div className="kpi-value">{loading ? '—' : kpis.completed}</div>
             <div className="kpi-context">
-              {loading ? '' : kpis.total > 0 ? `${Math.round((kpis.completed / kpis.total) * 100)}% of visits` : '—'}
+              {loading ? '' : kpis.total > 0 ? `${Math.round((kpis.completed / kpis.total) * 100)}% of activities` : '—'}
             </div>
           </div>
         </div>
@@ -899,8 +1056,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
             </select>
             <select className="acc-f" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}>
               <option value="">All Types</option>
-              <option value="single">Single visit</option>
-              <option value="double">Double visit</option>
+              <option value="single">Single activity</option>
+              <option value="double">Double activity</option>
             </select>
             <select className="acc-f" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}>
               <option value="">All Months</option>
@@ -911,9 +1068,9 @@ export default function VisitsPage({ region }: VisitsPageProps) {
               ))}
             </select>
             <div className="acc-date-range">
-              <input type="date" className="acc-f" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="Visit date from" />
+              <input type="date" className="acc-f" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} title="Activity date from" />
               <span>–</span>
-              <input type="date" className="acc-f" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="Visit date to" />
+              <input type="date" className="acc-f" value={dateTo} onChange={(e) => setDateTo(e.target.value)} title="Activity date to" />
             </div>
           </div>
 
@@ -924,8 +1081,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                 <th>Task Owner</th>
                 <th>Task Owner 2</th>
                 <th>Company</th>
-                <th>Visit Date</th>
-                <th>Visit Status</th>
+                <th>Activity Date</th>
+                <th>Activity Status</th>
                 <th>Type</th>
                 <th>Revisit</th>
                 <th>Comments</th>
@@ -949,7 +1106,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                   <td colSpan={10}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-triangle-exclamation" />
-                      Could not load visits.
+                      Could not load activities.
                       <br />
                       <small>{loadError}</small>
                     </div>
@@ -960,7 +1117,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                   <td colSpan={10}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-inbox" />
-                      No visits match your filters.
+                      No activities match your filters.
                     </div>
                   </td>
                 </tr>
@@ -1003,7 +1160,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
           </table>
           <div className="acc-foot">
             <span>
-              {view.length} visit{view.length !== 1 ? 's' : ''}
+              {view.length} {view.length !== 1 ? 'activities' : 'activity'}
             </span>
             <div className="acc-pg">
               <button disabled={clampedPage <= 1} onClick={() => setPage(clampedPage - 1)}>
@@ -1047,7 +1204,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
         <div className="acc-dhead">
           <h2>
             <Icon className={`fa-solid ${editId ? 'fa-pen' : 'fa-plus'}`} style={{ color: 'var(--gold)', fontSize: editId ? 15 : 16 }} />
-            {editId ? 'Edit Visit' : 'Add Visit'}
+            {editId ? 'Edit Activity' : 'Add Activity'}
           </h2>
           <button className="acc-dclose" onClick={closeDrawer}>
             <Icon className="fa-solid fa-xmark" />
@@ -1069,6 +1226,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                   onChange={(e) => {
                     setCompanyQuery(e.target.value);
                     setFormAccountId('');
+                    setFormStakeholderId('');
                     setCompanyPickerOpen(true);
                   }}
                   onFocus={() => setCompanyPickerOpen(true)}
@@ -1134,12 +1292,12 @@ export default function VisitsPage({ region }: VisitsPageProps) {
           </div>
 
           <div className="acc-fld">
-            <label>Visit Date</label>
+            <label>Activity Date</label>
             <input type="date" value={formDate} disabled={visitDateLocked} onChange={(e) => setFormDate(e.target.value)} />
           </div>
 
           <div className="acc-fld">
-            <label>Visit Status</label>
+            <label>Activity Status</label>
             <select value={formStatus} onChange={(e) => setFormStatus(e.target.value)}>
               {VISIT_STATUS_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -1150,10 +1308,10 @@ export default function VisitsPage({ region }: VisitsPageProps) {
           </div>
 
           <div className="acc-fld">
-            <label>Visit Type</label>
+            <label>Activity Type</label>
             <select value={formVisitType} disabled={!!editId} onChange={(e) => setFormVisitType(e.target.value as 'single' | 'double')}>
-              <option value="single">Single visit</option>
-              <option value="double">Double visit</option>
+              <option value="single">Single activity</option>
+              <option value="double">Double activity</option>
             </select>
           </div>
 
@@ -1192,17 +1350,82 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                 )}
               </div>
               <div className="acc-hint">
-                The visit is counted as achieved for <b>both</b> task owners.
+                The activity is counted as achieved for <b>both</b> task owners.
               </div>
             </div>
           )}
 
           <div className="acc-fld">
             <label>
-              Revisit Date <span className="vis-muted">(optional)</span>
+              Objective <span className="dm-req">*</span>
             </label>
-            <input type="date" value={formRevisit} onChange={(e) => setFormRevisit(e.target.value)} />
+            <select value={formObjective} onChange={(e) => setFormObjective(e.target.value)}>
+              <option value="">— Select —</option>
+              {OBJECTIVE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
+
+          <div className="acc-fld">
+            <label>
+              Outcome <span className="dm-req">*</span>
+            </label>
+            <select value={formOutcome} onChange={(e) => setFormOutcome(e.target.value)}>
+              <option value="">— Select —</option>
+              {OUTCOME_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {formOutcome && (
+            <div className="acc-fld">
+              <label>
+              Next Action <span className="dm-req">*</span>
+            </label>
+              <div className="vis-actions">
+                {ACTION_OPTIONS.map((o) => {
+                  const checked = formAction === String(o.value);
+                  return (
+                    <label key={o.value} className="vis-action">
+                      <input type="checkbox" checked={checked} onChange={() => setFormAction(checked ? '' : String(o.value))} />
+                      {o.label}
+                    </label>
+                  );
+                })}
+              </div>
+              {needsFollowThrough(formAction) && (
+                <div className="vis-followup">
+                  <div className="vis-followup-grid">
+                    <div>
+                      <label>Due Date</label>
+                      <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <label>Owner</label>
+                      <select value={formActionOwnerId} onChange={(e) => setFormActionOwnerId(e.target.value)}>
+                        <option value="">— Select —</option>
+                        {/* Keep a saved owner selectable even if they're outside the current region roster. */}
+                        {formActionOwnerId && !regionAgentOptions.some((a) => a.id === formActionOwnerId) && (
+                          <option value={formActionOwnerId}>{editOriginal?.actionOwner || '(agent)'}</option>
+                        )}
+                        {regionAgentOptions.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="acc-fld">
             <label>Comments</label>
@@ -1211,6 +1434,26 @@ export default function VisitsPage({ region }: VisitsPageProps) {
               value={formNotes}
               onChange={(e) => setFormNotes(e.target.value)}
             />
+          </div>
+
+          <div className="acc-fld">
+            <label>
+              Stakeholder Dealt With <span className="dm-req">*</span>
+            </label>
+            <select value={formStakeholderId} disabled={!formAccountId} onChange={(e) => setFormStakeholderId(e.target.value)}>
+              <option value="">{formAccountId ? '— Select —' : 'Pick a company first'}</option>
+              {formStakeholderId && !accountStakeholders.some((s) => s.id === formStakeholderId) && (
+                <option value={formStakeholderId}>{editOriginal?.stakeholder || '(contact)'}</option>
+              )}
+              {accountStakeholders.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.roleLabel ? `${s.name} — ${s.roleLabel}` : s.name}
+                </option>
+              ))}
+            </select>
+            {formAccountId && accountStakeholders.length === 0 && (
+              <div className="acc-hint">No client contacts on this account yet — add them from the Accounts page.</div>
+            )}
           </div>
         </div>
         <div className="acc-dfoot">
@@ -1223,7 +1466,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                 <Icon className="fa-solid fa-spinner fa-spin" /> Saving…
               </>
             ) : (
-              'Save Visit'
+              'Save Activity'
             )}
           </button>
         </div>

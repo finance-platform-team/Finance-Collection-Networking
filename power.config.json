@@ -31,8 +31,7 @@
         },
         "visits": {
           "entitySetName": "cr301_visits",
-          "logicalName": "cr301_visit",
-          "isHidden": false
+          "logicalName": "cr301_visit"
         },
         "categories": {
           "entitySetName": "cr301_categories",
@@ -127,6 +126,10 @@
         "planweekobjectives": {
           "entitySetName": "cfm_planweekobjectives",
           "logicalName": "cfm_planweekobjective"
+        },
+        "contactpeople": {
+          "entitySetName": "cr301_contactpersons",
+          "logicalName": "cr301_contactperson"
         }
       },
       "environmentVariableName": ""

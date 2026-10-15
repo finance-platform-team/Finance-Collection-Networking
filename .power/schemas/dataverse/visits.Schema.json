@@ -41,6 +41,46 @@
           "x-ms-schema-name": "and_isnetworkingmoduleName",
           "x-ms-read-only": true
         },
+        "cfm_action": {
+          "type": "string",
+          "title": "Action",
+          "x-ms-dataverse-attribute": "cfm_action",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "cfm_Action",
+          "enum": [
+            "Await Payment",
+            "Send Documentation",
+            "Escalate to Manager",
+            "Schedule Follow-up",
+            "Achieved"
+          ],
+          "x-ms-enum-values": [
+            766340000,
+            766340001,
+            766340002,
+            766340003,
+            766340004
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "16af87bf-96c8-f111-a05b-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Next action ",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "cfm_actionname": {
+          "type": "string",
+          "title": "cfm_actionname",
+          "x-ms-dataverse-attribute": "cfm_actionname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cfm_actionName",
+          "x-ms-read-only": true
+        },
         "cfm_agent2": {
           "type": "string",
           "title": "Agent 2",
@@ -57,12 +97,134 @@
           "x-ms-read-only": true,
           "maxLength": 850
         },
+        "cfm_duedatenextaction": {
+          "type": "string",
+          "title": "Due Date Next Action",
+          "x-ms-dataverse-attribute": "cfm_duedatenextaction",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "cfm_DueDateNextAction"
+        },
+        "cfm_nextactionowner": {
+          "type": "string",
+          "title": "Next Action Owner",
+          "x-ms-dataverse-attribute": "cfm_nextactionowner",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "cfm_NextActionOwner"
+        },
+        "cfm_nextactionownername": {
+          "type": "string",
+          "title": "cfm_nextactionownername",
+          "x-ms-dataverse-attribute": "cfm_nextactionownername",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "cfm_NextActionOwnerName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "cfm_objective": {
+          "type": "string",
+          "title": "objective",
+          "x-ms-dataverse-attribute": "cfm_objective",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "cfm_objective",
+          "enum": [
+            "Collection",
+            "Dispute Resolution",
+            "Follow-up",
+            "Reconciliation for Deduction"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "cf58524e-7dc8-f111-a05b-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "objective",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "cfm_objectivename": {
+          "type": "string",
+          "title": "cfm_objectivename",
+          "x-ms-dataverse-attribute": "cfm_objectivename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cfm_objectiveName",
+          "x-ms-read-only": true
+        },
+        "cfm_outcome": {
+          "type": "string",
+          "title": "OutCome",
+          "x-ms-dataverse-attribute": "cfm_outcome",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "cfm_OutCome",
+          "enum": [
+            "Full Payment",
+            "Partial Payment",
+            " No Payment ",
+            "Just Follow-up",
+            "Promise to Pay ",
+            "Missing Doc",
+            "Escalated"
+          ],
+          "x-ms-enum-values": [
+            766340000,
+            766340001,
+            766340002,
+            766340003,
+            766340004,
+            766340005,
+            766340006
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "8611302f-8dc8-f111-a05b-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Outcome",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "cfm_outcomename": {
+          "type": "string",
+          "title": "cfm_outcomename",
+          "x-ms-dataverse-attribute": "cfm_outcomename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cfm_outcomeName",
+          "x-ms-read-only": true
+        },
         "cfm_revisitdate": {
           "type": "string",
           "title": "Revisit Date",
           "x-ms-dataverse-attribute": "cfm_revisitdate",
           "x-ms-dataverse-type": "DateTimeType",
           "x-ms-schema-name": "cfm_RevisitDate"
+        },
+        "cfm_stakeholderdealtwith": {
+          "type": "string",
+          "title": "Stakeholder dealt with ",
+          "x-ms-dataverse-attribute": "cfm_stakeholderdealtwith",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "cfm_Stakeholderdealtwith"
+        },
+        "cfm_stakeholderdealtwithname": {
+          "type": "string",
+          "title": "cfm_stakeholderdealtwithname",
+          "x-ms-dataverse-attribute": "cfm_stakeholderdealtwithname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "cfm_StakeholderdealtwithName",
+          "x-ms-read-only": true,
+          "maxLength": 850
         },
         "cfm_tagename": {
           "type": "string",
@@ -474,19 +636,25 @@
             "Open",
             "Completed",
             "Cancelled",
-            "Partially Closed"
+            "Partially Closed",
+            "Missed",
+            "reschedule"
           ],
           "x-ms-enum-values": [
             983080000,
             983080001,
             983080002,
-            766340001
+            766340001,
+            124700001,
+            124700002
           ],
           "Color": [
             "#f7ff99",
             "#c6b5ff",
             "#ff8c8c",
-            "#f2e1e1"
+            "#f2e1e1",
+            null,
+            null
           ],
           "x-ms-optionsetmetadataid": "c4c7c062-8a8c-f011-b4cc-6045bdf37b46",
           "x-ms-isGlobal": true,
@@ -756,7 +924,8 @@
             "Home Care Cash",
             "Credit",
             "Cash Account",
-            "Other"
+            "Other",
+            "KSA · District BD"
           ],
           "x-ms-enum-values": [
             983080000,
@@ -782,7 +951,8 @@
             124700009,
             124700010,
             124700011,
-            124700012
+            124700012,
+            124700013
           ],
           "Color": [
             "#9cbfd6",
@@ -797,6 +967,7 @@
             "#87e08a",
             "#8892eb",
             "#d1ffcf",
+            null,
             null,
             null,
             null,
@@ -1073,6 +1244,22 @@
           "x-ms-schema-name": "ms_ismanagementengagementrequiredName",
           "x-ms-read-only": true
         },
+        "ms_kpibreakdown": {
+          "type": "string",
+          "title": "KPI Breakdown",
+          "x-ms-dataverse-attribute": "ms_kpibreakdown",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ms_KPIBreakdown"
+        },
+        "ms_kpibreakdownname": {
+          "type": "string",
+          "title": "ms_kpibreakdownname",
+          "x-ms-dataverse-attribute": "ms_kpibreakdownname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_KPIBreakdownName",
+          "x-ms-read-only": true,
+          "maxLength": 100
+        },
         "ms_locationapprovalstatus": {
           "type": "string",
           "title": "Location approval status",
@@ -1115,6 +1302,65 @@
           "x-ms-schema-name": "ms_Locationrejectreason",
           "maxLength": 100
         },
+        "ms_mainrecord": {
+          "type": "string",
+          "title": "Main Record",
+          "x-ms-dataverse-attribute": "ms_mainrecord",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ms_MainRecord"
+        },
+        "ms_mainrecordname": {
+          "type": "string",
+          "title": "ms_mainrecordname",
+          "x-ms-dataverse-attribute": "ms_mainrecordname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_MainRecordName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "ms_mappedproduct": {
+          "type": "string",
+          "title": "Mapped product",
+          "x-ms-dataverse-attribute": "ms_mappedproduct",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Mappedproduct",
+          "enum": [
+            "Onsite Clinic Services",
+            "Ambulance Service Contract",
+            "GOSI Occupational Injury Management",
+            "Emergency Case Referral Agreement",
+            "Training & Accredited Certification (BLS / Quality)",
+            "Employee Checkups, Medical Fitness & Pre-Employment"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "9dd5d37a-5cba-f111-aaae-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Mapped product",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_mappedproductname": {
+          "type": "string",
+          "title": "ms_mappedproductname",
+          "x-ms-dataverse-attribute": "ms_mappedproductname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_mappedproductName",
+          "x-ms-read-only": true
+        },
         "ms_nameofemp": {
           "type": "string",
           "title": "Name Of Emp",
@@ -1130,6 +1376,37 @@
           "x-ms-schema-name": "ms_NameOfEmpName",
           "x-ms-read-only": true,
           "maxLength": 850
+        },
+        "ms_newsegmentoropportunityidentified": {
+          "type": "string",
+          "title": "New segment or opportunity identified?",
+          "x-ms-dataverse-attribute": "ms_newsegmentoropportunityidentified",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "ms_Newsegmentoropportunityidentified",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "095879f6-59ba-f111-aaae-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "New segment or opportunity identified?",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "ms_newsegmentoropportunityidentifiedname": {
+          "type": "string",
+          "title": "ms_newsegmentoropportunityidentifiedname",
+          "x-ms-dataverse-attribute": "ms_newsegmentoropportunityidentifiedname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_newsegmentoropportunityidentifiedName",
+          "x-ms-read-only": true
         },
         "ms_preferredfrom": {
           "type": "string",
@@ -1276,7 +1553,8 @@
             "Maternity",
             "Dental",
             "Occupational health",
-            "Insurance conversion"
+            "Insurance conversion",
+            "Other"
           ],
           "x-ms-enum-values": [
             100000000,
@@ -1285,9 +1563,11 @@
             100000003,
             100000004,
             100000005,
-            100000006
+            100000006,
+            124700001
           ],
           "Color": [
+            null,
             null,
             null,
             null,
@@ -1308,6 +1588,22 @@
           "x-ms-dataverse-type": "VirtualType",
           "x-ms-schema-name": "ms_segmentName",
           "x-ms-read-only": true
+        },
+        "ms_specialty": {
+          "type": "string",
+          "title": "Specialty",
+          "x-ms-dataverse-attribute": "ms_specialty",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ms_Specialty"
+        },
+        "ms_specialtyname": {
+          "type": "string",
+          "title": "ms_specialtyname",
+          "x-ms-dataverse-attribute": "ms_specialtyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_SpecialtyName",
+          "x-ms-read-only": true,
+          "maxLength": 850
         },
         "ms_titleofemp": {
           "type": "string",
@@ -1360,6 +1656,43 @@
           "x-ms-dataverse-attribute": "ms_urgencyname",
           "x-ms-dataverse-type": "VirtualType",
           "x-ms-schema-name": "ms_urgencyName",
+          "x-ms-read-only": true
+        },
+        "ms_whichsegment": {
+          "type": "string",
+          "title": "Which segment?",
+          "x-ms-dataverse-attribute": "ms_whichsegment",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Whichsegment",
+          "enum": [
+            "Medical",
+            "Corporate",
+            "Community",
+            "Onsite Clinic"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "63f94152-5aba-f111-aaae-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Which segment? ",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_whichsegmentname": {
+          "type": "string",
+          "title": "ms_whichsegmentname",
+          "x-ms-dataverse-attribute": "ms_whichsegmentname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_whichsegmentName",
           "x-ms-read-only": true
         },
         "overriddencreatedon": {

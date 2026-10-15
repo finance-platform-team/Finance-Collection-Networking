@@ -5,10 +5,38 @@
  */
 
 export const dataSourcesInfo = {
-  "ar_disputemanagements": {
+  "cr301_accounts": {
     "tableId": "",
     "version": "",
-    "primaryKey": "ar_disputemanagementid",
+    "primaryKey": "cr301_accountid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cr301_accounttypes": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr301_accounttypeid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cr301_agents": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr301_agentid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cfm_aragings": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cfm_aragingid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cfm_insurancecompanies": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cfm_insurancecompanyid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -19,10 +47,10 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "cfm_aragings": {
+  "cr301_categories": {
     "tableId": "",
     "version": "",
-    "primaryKey": "cfm_aragingid",
+    "primaryKey": "cr301_categoryid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -47,10 +75,24 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "cr301_contactpersons": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr301_contactpersonid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "cfm_dailycollections": {
     "tableId": "",
     "version": "",
     "primaryKey": "cfm_dailycollectionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "ar_disputemanagements": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "ar_disputemanagementid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -61,76 +103,6 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "cfm_highriskcompanieses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cfm_highriskcompaniesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cfm_insurancecompanies": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cfm_insurancecompanyid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cfm_slas": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cfm_slaid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cfm_weeklytargetses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cfm_weeklytargetsid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr301_accounts": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr301_accountid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr301_accounttypes": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr301_accounttypeid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr301_agents": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr301_agentid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr301_categories": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr301_categoryid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr301_salesteams": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr301_salesteamid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr301_visits": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr301_visitid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
   "hr_employees": {
     "tableId": "",
     "version": "",
@@ -138,10 +110,10 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "pm_kpiachievments": {
+  "cfm_highriskcompanieses": {
     "tableId": "",
     "version": "",
-    "primaryKey": "pm_kpiachievmentid",
+    "primaryKey": "cfm_highriskcompaniesid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -152,10 +124,38 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "pm_kpiachievments": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "pm_kpiachievmentid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "strategy_kpises": {
     "tableId": "",
     "version": "",
     "primaryKey": "strategy_kpisid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cfm_planweekobjectives": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cfm_planweekobjectiveid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cr301_salesteams": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cr301_salesteamid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cfm_slas": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cfm_slaid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -166,10 +166,17 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "cfm_planweekobjectives": {
+  "cr301_visits": {
     "tableId": "",
     "version": "",
-    "primaryKey": "cfm_planweekobjectiveid",
+    "primaryKey": "cr301_visitid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "cfm_weeklytargetses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cfm_weeklytargetsid",
     "dataSourceType": "Dataverse",
     "apis": {}
   }

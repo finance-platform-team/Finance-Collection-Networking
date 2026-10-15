@@ -6,13 +6,16 @@ import { Strategy_kpisesService } from '../generated/services/Strategy_kpisesSer
 import { Pm_kpiachievmentsService } from '../generated/services/Pm_kpiachievmentsService';
 import { Stf_kpiachievmentbreakdownsService } from '../generated/services/Stf_kpiachievmentbreakdownsService';
 import { Cfm_collectionplanweeksService } from '../generated/services/Cfm_collectionplanweeksService';
+import { Cfm_planweekobjectivesService } from '../generated/services/Cfm_planweekobjectivesService';
 import type { Cr301_visits } from '../generated/models/Cr301_visitsModel';
 import type { Hr_employees } from '../generated/models/Hr_employeesModel';
 import type { Pm_kpiachievments } from '../generated/models/Pm_kpiachievmentsModel';
 import type { Stf_kpiachievmentbreakdowns } from '../generated/models/Stf_kpiachievmentbreakdownsModel';
 import type { Cfm_collectionplanweeks } from '../generated/models/Cfm_collectionplanweeksModel';
+import type { Cfm_planweekobjectives } from '../generated/models/Cfm_planweekobjectivesModel';
 import { fetchAll } from '../lib/dataverse';
 import type { Region } from '../lib/useRegion';
+import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabel } from '../lib/activityOptions';
 import Icon from '../components/Icon';
 import './VisitAudit.css';
 
@@ -131,7 +134,32 @@ interface AuditRow {
   variance: number | null;
   status: AuditStatus;
   region: 'EG' | 'KSA' | '';
+  objective: number | null;
+  outcome: number | null;
 }
+
+/** One cfm_planweekobjective target, resolved to its owner and plan week. */
+interface ObjectiveTarget {
+  ownerName: string;
+  region: 'EG' | 'KSA' | '';
+  year: number;
+  month: number;
+  week: number;
+  objective: number;
+  target: number;
+}
+
+/** Per owner + objective: what the plan set vs. what was logged, and how it ended. */
+interface ObjectiveSummary {
+  key: string;
+  ownerName: string;
+  objective: number | null;
+  target: number;
+  actual: number;
+  /** cfm_outcome value -> count; NO_OUTCOME for activities without one. */
+  outcomes: Map<number, number>;
+}
+const NO_OUTCOME = -1;
 
 interface OwnerSummary {
   name: string;
@@ -165,6 +193,7 @@ interface VisitAuditPageProps {
 
 export default function VisitAuditPage({ region }: VisitAuditPageProps) {
   const [rows, setRows] = useState<AuditRow[]>([]);
+  const [objectiveTargets, setObjectiveTargets] = useState<ObjectiveTarget[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -204,12 +233,14 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
                 '_cfm_agent2_value',
                 '_createdby_value',
                 '_modifiedby_value',
+                'cfm_objective',
+                'cfm_outcome',
               ],
               filter: `cfm_tagename eq ${TAG_COLLECTION}`,
               maxPageSize: 5000,
               skipToken,
             }),
-          'Could not load visits.'
+          'Could not load activities.'
         ),
         Strategy_kpisesService.getAll({
           select: ['strategy_kpisid', '_strategy_function_value', '_strategy_department_value'],
@@ -258,16 +289,30 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
       // showed as "—" for every row). VisitPlan.tsx avoids the same trap by
       // fetching all active weeks unscoped and joining client-side — mirrored
       // here for the same reason.
-      const weekRows = await fetchAll<Cfm_collectionplanweeks>(
-        (skipToken) =>
-          Cfm_collectionplanweeksService.getAll({
-            select: ['cfm_weeknumber', 'cfm_plan', 'cfm_actual', '_cfm_kpiachievementbreakdown_value'],
-            filter: 'statecode eq 0',
-            maxPageSize: 5000,
-            skipToken,
-          }),
-        'Could not load collection plan weeks.'
-      );
+      // Per-objective targets hang off the plan weeks — same unscoped fetch +
+      // client-side join, for the same reason.
+      const [weekRows, objectiveRows] = await Promise.all([
+        fetchAll<Cfm_collectionplanweeks>(
+          (skipToken) =>
+            Cfm_collectionplanweeksService.getAll({
+              select: ['cfm_collectionplanweekid', 'cfm_weeknumber', 'cfm_plan', 'cfm_actual', '_cfm_kpiachievementbreakdown_value'],
+              filter: 'statecode eq 0',
+              maxPageSize: 5000,
+              skipToken,
+            }),
+          'Could not load collection plan weeks.'
+        ),
+        fetchAll<Cfm_planweekobjectives>(
+          (skipToken) =>
+            Cfm_planweekobjectivesService.getAll({
+              select: ['cfm_objective', 'cfm_target', '_cfm_collectionplanweek_value'],
+              filter: 'statecode eq 0',
+              maxPageSize: 5000,
+              skipToken,
+            }),
+          'Could not load plan week objectives.'
+        ),
+      ]);
 
       const achById = new Map(achRows.map((a) => [a.pm_kpiachievmentid, a]));
       const brkById = new Map(brkRows.map((b) => [b.stf_kpiachievmentbreakdownid, b]));
@@ -276,6 +321,8 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
 
       // employeeId|year|month|week -> { plan, actual }
       const planMap = new Map<string, { plan: number; actual: number }>();
+      // plan week id -> who/when, for resolving each objective target below.
+      const weekInfo = new Map<string, { empId: string; year: number; month: number; week: number }>();
       weekRows.forEach((w) => {
         const brkId = w._cfm_kpiachievementbreakdown_value;
         const brk = brkId ? brkById.get(brkId) : undefined;
@@ -285,6 +332,36 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
         if (!ach || !empId) return;
         const key = `${empId}|${N(ach.pm_year)}|${N(ach.pm_month)}|${N(w.cfm_weeknumber)}`;
         planMap.set(key, { plan: N(w.cfm_plan), actual: N(w.cfm_actual) });
+        weekInfo.set(w.cfm_collectionplanweekid, { empId, year: N(ach.pm_year), month: N(ach.pm_month), week: N(w.cfm_weeknumber) });
+      });
+
+      // Objective targets are keyed by employee; show them under the same
+      // owner (agent) name the activity rows use, via the same name match.
+      const agentByEmployee = new Map<string, { name: string; region: 'EG' | 'KSA' | '' }>();
+      agentRows.forEach((a) => {
+        const emp = employeeByKey.get(firstWords(a.cr301_newcolumn || '', 3));
+        if (!emp || agentByEmployee.has(emp.hr_employeeid)) return;
+        const areaValue = a.cr18c_area == null ? null : Number(a.cr18c_area);
+        agentByEmployee.set(emp.hr_employeeid, {
+          name: a.cr301_newcolumn || '(unknown owner)',
+          region: areaValue == null ? '' : areaValue === AREA_KSA ? 'KSA' : 'EG',
+        });
+      });
+      const employeeNameById = new Map(employeeRows.map((e) => [e.hr_employeeid, e.hr_fullname || '(unknown owner)']));
+      const targets: ObjectiveTarget[] = [];
+      objectiveRows.forEach((o) => {
+        const info = o._cfm_collectionplanweek_value ? weekInfo.get(o._cfm_collectionplanweek_value) : undefined;
+        if (!info || o.cfm_objective == null) return;
+        const agent = agentByEmployee.get(info.empId);
+        targets.push({
+          ownerName: agent?.name || employeeNameById.get(info.empId) || '(unknown owner)',
+          region: agent?.region || '',
+          year: info.year,
+          month: info.month,
+          week: info.week,
+          objective: Number(o.cfm_objective),
+          target: N(o.cfm_target),
+        });
       });
 
       const auditRows: AuditRow[] = [];
@@ -360,6 +437,8 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
             variance: planEntry ? planEntry.actual - planEntry.plan : null,
             status,
             region: rowRegion,
+            objective: v.cfm_objective ?? null,
+            outcome: v.cfm_outcome ?? null,
           });
         });
       });
@@ -378,6 +457,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
 
       auditRows.sort((a, b) => b.createdOn.localeCompare(a.createdOn));
       setRows(auditRows);
+      setObjectiveTargets(targets);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -402,7 +482,11 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
     return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
   }, [rows]);
 
-  const ownerOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.ownerName))).sort(), [rows]);
+  // Owners with a plan target but no activities yet still need to be pickable.
+  const ownerOptions = useMemo(
+    () => Array.from(new Set([...rows.map((r) => r.ownerName), ...objectiveTargets.map((t) => t.ownerName)])).sort(),
+    [rows, objectiveTargets]
+  );
 
   const view = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -482,6 +566,49 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
     });
     return list.sort((a, b) => b.total - a.total);
   }, [view]);
+
+  /**
+   * Per owner + objective: the plan's per-objective targets (cfm_planweekobjective)
+   * vs. the activities logged with that objective in the same plan weeks, plus
+   * how those activities ended (cfm_outcome). Activities reuse `view`, so the
+   * month/owner/status/search/region filters all apply; targets get the same
+   * month/owner/search/region filters. Activities logged without an objective
+   * get their own row so they don't silently vanish from the comparison.
+   */
+  const objectiveSummaries = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const groups = new Map<string, ObjectiveSummary>();
+    const group = (ownerName: string, objective: number | null) => {
+      const key = `${ownerName}|${objective ?? 'none'}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = { key, ownerName, objective, target: 0, actual: 0, outcomes: new Map() };
+        groups.set(key, g);
+      }
+      return g;
+    };
+    objectiveTargets.forEach((t) => {
+      if (q && !t.ownerName.toLowerCase().includes(q)) return;
+      if (monthFilter && monthKeyOf(t.year, t.month) !== monthFilter) return;
+      if (ownerFilter && t.ownerName !== ownerFilter) return;
+      if (region && (region === 'KSA' ? t.region !== 'KSA' : t.region === 'KSA')) return;
+      group(t.ownerName, t.objective).target += t.target;
+    });
+    view.forEach((r) => {
+      const g = group(r.ownerName, r.objective);
+      g.actual++;
+      const outcome = r.outcome ?? NO_OUTCOME;
+      g.outcomes.set(outcome, (g.outcomes.get(outcome) || 0) + 1);
+    });
+    const objectiveOrder = (o: number | null) => (o == null ? 99 : OBJECTIVE_OPTIONS.findIndex((x) => x.value === o));
+    return Array.from(groups.values())
+      .filter((g) => g.target > 0 || g.actual > 0)
+      .sort((a, b) => a.ownerName.localeCompare(b.ownerName) || objectiveOrder(a.objective) - objectiveOrder(b.objective));
+  }, [objectiveTargets, view, query, monthFilter, ownerFilter, region]);
+
+  const objectiveLabel = (o: number | null) => (o == null ? 'Not set' : optionLabel(OBJECTIVE_OPTIONS, o) || `#${o}`);
+  const outcomeLabel = (o: number) => (o === NO_OUTCOME ? 'No outcome' : optionLabel(OUTCOME_OPTIONS, o) || `#${o}`);
+  const pctOf = (actual: number, target: number) => (target > 0 ? (actual / target) * 100 : null);
 
   const [exporting, setExporting] = useState(false);
 
@@ -567,13 +694,38 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
           { header: 'Month', width: 16 },
           { header: 'Week', width: 10 },
           { header: 'Weekly Target', width: 12 },
-          { header: 'Visits Done in Same Week', width: 16 },
-          { header: 'Visits Added in Wrong Week', width: 16 },
-          { header: 'Total Visits', width: 12 },
-          { header: 'Double Visits', width: 12 },
-          { header: 'Repeated Visits', width: 12 },
+          { header: 'Activities Done in Same Week', width: 16 },
+          { header: 'Activities Added in Wrong Week', width: 16 },
+          { header: 'Total Activities', width: 12 },
+          { header: 'Double Activities', width: 12 },
+          { header: 'Repeated Activities', width: 12 },
         ],
         Array.from(weekGroups.values()).map((g) => [g.r.ownerName, monthLabel(g.r), weekLabel(g.r), target(g.r), g.same, g.wrong, g.total, g.double, g.repeated])
+      );
+
+      // ---- Objectives: per owner + objective, target vs. actual + outcomes ----
+      const outcomeCols = [...OUTCOME_OPTIONS.map((o) => o.value as number), NO_OUTCOME];
+      addSheet(
+        'Objectives',
+        [
+          { header: 'Agent', width: 28 },
+          { header: 'Objective', width: 26 },
+          { header: 'Target', width: 10 },
+          { header: 'Actual', width: 10 },
+          { header: 'Achievement %', width: 12 },
+          ...outcomeCols.map((o) => ({ header: outcomeLabel(o), width: 12 })),
+        ],
+        objectiveSummaries.map((s) => {
+          const pct = pctOf(s.actual, s.target);
+          return [
+            s.ownerName,
+            objectiveLabel(s.objective),
+            s.target,
+            s.actual,
+            pct == null ? '' : Math.round(pct * 10) / 10,
+            ...outcomeCols.map((o) => s.outcomes.get(o) || 0),
+          ];
+        })
       );
 
       // ---- Double Visits: every double visit + the owner's double count that week ----
@@ -581,15 +733,15 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
       const doubleCount = new Map<string, number>();
       doubleRows.forEach((r) => doubleCount.set(ownerWeekKey(r), (doubleCount.get(ownerWeekKey(r)) || 0) + 1));
       addSheet(
-        'Double Visits',
+        'Double Activities',
         [
           { header: 'Agent Name', width: 28 },
           { header: 'Month', width: 16 },
           { header: 'Week', width: 10 },
           { header: 'Weekly Target', width: 12 },
-          { header: 'Num. Double Visits', width: 12 },
-          { header: 'Visit Date', width: 14, date: 'date' },
-          { header: 'Double Visit With', width: 28 },
+          { header: 'Num. Double Activities', width: 12 },
+          { header: 'Activity Date', width: 14, date: 'date' },
+          { header: 'Double Activity With', width: 28 },
           { header: 'Company Name', width: 34 },
         ],
         doubleRows.map((r) => [r.ownerName, monthLabel(r), weekLabel(r), target(r), doubleCount.get(ownerWeekKey(r)) || 0, asDate(r.visitDate), r.doubleWith, r.company])
@@ -597,15 +749,15 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
 
       // ---- Repeated Visits: same owner + same company more than once in a week ----
       addSheet(
-        'Repeated Visits',
+        'Repeated Activities',
         [
           { header: 'Agent Name', width: 28 },
           { header: 'Month', width: 16 },
           { header: 'Week', width: 10 },
           { header: 'Weekly Target', width: 12 },
           { header: 'Company Name', width: 34 },
-          { header: 'No. of Visits in Same Week', width: 14 },
-          { header: 'Visit Date', width: 14, date: 'date' },
+          { header: 'No. of Activities in Same Week', width: 14 },
+          { header: 'Activity Date', width: 14, date: 'date' },
           { header: 'Created On', width: 18, date: 'datetime' },
           { header: 'Double With', width: 28 },
         ],
@@ -624,15 +776,15 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
           { header: 'Month', width: 16 },
           { header: 'Week', width: 10 },
           { header: 'Weekly Target', width: 12 },
-          { header: 'Visit Date', width: 14, date: 'date' },
+          { header: 'Activity Date', width: 14, date: 'date' },
           { header: 'Company', width: 34 },
           { header: 'Created Week', width: 22 },
           { header: 'Days Difference', width: 11 },
           { header: 'Audit Status', width: 18 },
           { header: 'Wrong Week', width: 10 },
-          { header: 'Double Visit?', width: 10 },
+          { header: 'Double Activity?', width: 10 },
           { header: 'Double With', width: 28 },
-          { header: 'Repeated Visits', width: 11 },
+          { header: 'Repeated Activities', width: 11 },
           { header: 'Created On', width: 18, date: 'datetime' },
           { header: 'Modified On', width: 18, date: 'datetime' },
           { header: 'Created By', width: 24 },
@@ -665,7 +817,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'visit_audit.xlsx';
+      link.download = 'activity_audit.xlsx';
       link.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -690,8 +842,8 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
     <div className="acc-wrap">
       <div className="acc-head">
         <div>
-          <h1 className="acc-title">Visit Audit</h1>
-          <div className="acc-sub">Visit Date vs. Created On · Expected Week vs. Created Week · Plan vs. Actual · per task owner</div>
+          <h1 className="acc-title">Activity Audit</h1>
+          <div className="acc-sub">Activity Date vs. Created On · Expected Week vs. Created Week · Plan vs. Actual · per task owner</div>
         </div>
         <div className="acc-actions">
           <button className="acc-btn" onClick={exportAudit} disabled={exporting || loading || !view.length}>
@@ -706,7 +858,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
             <span className="kpi-icon kpi-icon-gold">
               <Icon className="fa-solid fa-list-check" />
             </span>
-            <span className="kpi-label">Total visits</span>
+            <span className="kpi-label">Total activities</span>
           </div>
           <div className="kpi-value">{loading ? '—' : summary.total}</div>
         </div>
@@ -782,7 +934,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
                   <td colSpan={10}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-inbox" />
-                      No visits match your filters.
+                      No activities match your filters.
                     </div>
                   </td>
                 </tr>
@@ -840,7 +992,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
             </select>
           </div>
           <div className="dm-count">
-            <Icon className="fa-solid fa-list-check" /> {view.length} visit{view.length === 1 ? '' : 's'}
+            <Icon className="fa-solid fa-list-check" /> {view.length} {view.length === 1 ? 'activity' : 'activities'}
           </div>
         </div>
         <div className="acc-tablewrap">
@@ -849,7 +1001,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
               <tr>
                 <th>Task Owner</th>
                 <th>Region</th>
-                <th>Visit Date</th>
+                <th>Activity Date</th>
                 <th>Created On</th>
                 <th>Expected Week</th>
                 <th>Created Week</th>
@@ -876,7 +1028,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
                   <td colSpan={11}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-inbox" />
-                      No visits match your filters.
+                      No activities match your filters.
                     </div>
                   </td>
                 </tr>
