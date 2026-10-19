@@ -96,6 +96,8 @@ interface AgentRow {
   /** cr301_agents.cfm_employee (_cfm_employee_value) — empty for an agent
    *  saved before this field started being bound (see handleSave). */
   employeeId: string;
+  /** cr301_agents.cfm_ismanager — a manager in Activity Communication. */
+  isManager: boolean;
 }
 
 function loginOf(domainName: string): string {
@@ -579,7 +581,7 @@ export default function AgentsPage({ region }: AgentsPageProps) {
         // name is resolved below via teamMap, the same way userMap resolves the
         // Agent User's name.
         Cr301_agentsService.getAll({
-          select: ['cr301_agentid', 'cr301_newcolumn', '_cr301_agent_value', 'cr18c_area', TEAM_VALUE_FIELD, EMPLOYEE_VALUE_FIELD],
+          select: ['cr301_agentid', 'cr301_newcolumn', '_cr301_agent_value', 'cr18c_area', 'cfm_ismanager', TEAM_VALUE_FIELD, EMPLOYEE_VALUE_FIELD],
           filter: COLLECTION_FILTER,
           orderBy: ['createdon desc'],
         }),
@@ -615,6 +617,7 @@ export default function AgentsPage({ region }: AgentsPageProps) {
           employeeId: a._cfm_employee_value || '',
           teamId,
           teamName: (teamId && teamMap.get(teamId)) || '',
+          isManager: !!a.cfm_ismanager,
         };
       });
       setUsers(userOptions);

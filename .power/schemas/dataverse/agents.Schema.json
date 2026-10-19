@@ -88,6 +88,80 @@
           "x-ms-schema-name": "cfm_iscollectionName",
           "x-ms-read-only": true
         },
+        "cfm_ismanager": {
+          "type": "string",
+          "title": "Is Manager",
+          "x-ms-dataverse-attribute": "cfm_ismanager",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "cfm_IsManager",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "5ca803ff-e6ca-f111-a05c-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Is Manager",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "cfm_ismanagername": {
+          "type": "string",
+          "title": "cfm_ismanagername",
+          "x-ms-dataverse-attribute": "cfm_ismanagername",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cfm_ismanagerName",
+          "x-ms-read-only": true
+        },
+        "cfm_tagename": {
+          "type": "string",
+          "title": "Tage Name",
+          "x-ms-dataverse-attribute": "cfm_tagename",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "cfm_TageName",
+          "enum": [
+            "Collection",
+            "AR",
+            "AP",
+            "Mediation Request",
+            "Cash Flow",
+            "Not Discharge"
+          ],
+          "x-ms-enum-values": [
+            766340000,
+            766340001,
+            766340002,
+            766340003,
+            766340004,
+            752210001
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "3de667dc-e693-f111-8075-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Tage Name",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "cfm_tagenamename": {
+          "type": "string",
+          "title": "cfm_tagenamename",
+          "x-ms-dataverse-attribute": "cfm_tagenamename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cfm_tagenameName",
+          "x-ms-read-only": true
+        },
         "cr18c_area": {
           "type": "string",
           "title": "Area",
@@ -100,7 +174,13 @@
             "Remote",
             "Jeddah",
             "KSA",
-            "Egypt"
+            "Egypt",
+            "Remote South",
+            "Remote North",
+            "Industrial",
+            "East",
+            "West",
+            "Middle"
           ],
           "x-ms-enum-values": [
             989230000,
@@ -108,9 +188,21 @@
             989230002,
             989230003,
             989230004,
-            766340001
+            766340001,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006
           ],
           "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null,
             null,
             null,
@@ -476,6 +568,43 @@
           "x-ms-read-only": true,
           "required": true,
           "maxLength": 100
+        },
+        "ms_agentclassification": {
+          "type": "string",
+          "title": "Agent Classification",
+          "x-ms-dataverse-attribute": "ms_agentclassification",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_AgentClassification",
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "x-ms-enum-values": [
+            983080000,
+            983080001,
+            983080002,
+            124700001
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "9f8a0ac0-898c-f011-b4cc-6045bdf37b46",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Account Class",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_agentclassificationname": {
+          "type": "string",
+          "title": "ms_agentclassificationname",
+          "x-ms-dataverse-attribute": "ms_agentclassificationname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_agentclassificationName",
+          "x-ms-read-only": true
         },
         "ms_bu": {
           "type": "string",

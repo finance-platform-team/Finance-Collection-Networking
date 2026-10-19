@@ -16,7 +16,8 @@ export type PageKey =
   | 'agents'
   | 'visits'
   | 'visit-plan'
-  | 'visit-audit';
+  | 'visit-audit'
+  | 'activity-communication';
 
 interface NavItem {
   key: PageKey;
@@ -41,11 +42,12 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: 'Visits',
+    title: 'Field Activities',
     items: [
       { key: 'visit-plan', icon: 'fa-bullseye', label: 'Visits — Planned & Actual' },
       { key: 'visits', icon: 'fa-location-dot', label: 'Activities Log' },
       { key: 'visit-audit', icon: 'fa-magnifying-glass-chart', label: 'Activity Audit' },
+      { key: 'activity-communication', icon: 'fa-comment', label: 'Activity Communication' },
       { key: 'accounts', icon: 'fa-building-shield', label: 'Accounts' },
       { key: 'agents', icon: 'fa-user-tie', label: 'Agents' },
     ],
@@ -132,7 +134,7 @@ export default function Layout({ active, onNavigate, region, onRegionChange, chi
           </button>
         </div>
         <nav className="acc-sb-nav">
-          {(VISITS_ONLY ? NAV_GROUPS.filter((g) => g.title === 'Visits') : NAV_GROUPS).map((group) => {
+          {(VISITS_ONLY ? NAV_GROUPS.filter((g) => g.title === 'Field Activities') : NAV_GROUPS).map((group) => {
             const items = group.items;
             if (items.length === 0) return null;
             const isCollapsed = collapsedGroups.has(group.title);

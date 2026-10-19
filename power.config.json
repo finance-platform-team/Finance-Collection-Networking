@@ -21,8 +21,7 @@
         },
         "agents": {
           "entitySetName": "cr301_agents",
-          "logicalName": "cr301_agent",
-          "isHidden": false
+          "logicalName": "cr301_agent"
         },
         "users": {
           "entitySetName": "systemusers",
@@ -95,8 +94,7 @@
         },
         "collectionplanweeks": {
           "entitySetName": "cfm_collectionplanweeks",
-          "logicalName": "cfm_collectionplanweek",
-          "isHidden": false
+          "logicalName": "cfm_collectionplanweek"
         },
         "highriskcompanies": {
           "entitySetName": "cfm_highriskcompanieses",
@@ -130,6 +128,10 @@
         "contactpeople": {
           "entitySetName": "cr301_contactpersons",
           "logicalName": "cr301_contactperson"
+        },
+        "activitymessages": {
+          "entitySetName": "cfm_activitymessages",
+          "logicalName": "cfm_activitymessage"
         }
       },
       "environmentVariableName": ""

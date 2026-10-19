@@ -31,6 +31,37 @@
           "x-ms-dataverse-type": "IntegerType",
           "x-ms-schema-name": "cfm_ActualCollected"
         },
+        "cfm_agentconfirmed": {
+          "type": "string",
+          "title": "Agent Confirmed",
+          "x-ms-dataverse-attribute": "cfm_agentconfirmed",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "cfm_AgentConfirmed",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "74233c09-d9ca-f111-a05c-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Agent Confirmed",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "cfm_agentconfirmedname": {
+          "type": "string",
+          "title": "cfm_agentconfirmedname",
+          "x-ms-dataverse-attribute": "cfm_agentconfirmedname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cfm_agentconfirmedName",
+          "x-ms-read-only": true
+        },
         "cfm_collectionplanweekid": {
           "type": "string",
           "title": "Collection Plan Week",
@@ -40,6 +71,72 @@
           "x-ms-dataverse-primary-id": true,
           "required": true,
           "x-ms-keyType": "primary"
+        },
+        "cfm_confirmationstatus": {
+          "type": "string",
+          "title": "Confirmation Status",
+          "x-ms-dataverse-attribute": "cfm_confirmationstatus",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "cfm_ConfirmationStatus",
+          "enum": [
+            "Pending",
+            "Confirmed",
+            "Change Requested"
+          ],
+          "x-ms-enum-values": [
+            766340000,
+            766340001,
+            766340003
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "78632648-d9ca-f111-a05c-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Confirmation Status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "cfm_confirmationstatusname": {
+          "type": "string",
+          "title": "cfm_confirmationstatusname",
+          "x-ms-dataverse-attribute": "cfm_confirmationstatusname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cfm_confirmationstatusName",
+          "x-ms-read-only": true
+        },
+        "cfm_confirmedby": {
+          "type": "string",
+          "title": "Confirmed by",
+          "x-ms-dataverse-attribute": "cfm_confirmedby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "cfm_Confirmedby"
+        },
+        "cfm_confirmedbyname": {
+          "type": "string",
+          "title": "cfm_confirmedbyname",
+          "x-ms-dataverse-attribute": "cfm_confirmedbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "cfm_ConfirmedbyName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "cfm_confirmedbyyominame": {
+          "type": "string",
+          "title": "cfm_confirmedbyyominame",
+          "x-ms-dataverse-attribute": "cfm_confirmedbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "cfm_ConfirmedbyYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "cfm_confirmedon": {
+          "type": "string",
+          "title": "Confirmed On",
+          "x-ms-dataverse-attribute": "cfm_confirmedon",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "cfm_ConfirmedOn"
         },
         "cfm_kpiachievement": {
           "type": "string",

@@ -149,10 +149,13 @@ interface ObjectiveTarget {
   target: number;
 }
 
-/** Per owner + objective: what the plan set vs. what was logged, and how it ended. */
+/** Per owner + plan week + objective: what the plan set vs. what was logged, and how it ended. */
 interface ObjectiveSummary {
   key: string;
   ownerName: string;
+  year: number;
+  month: number;
+  week: number;
   objective: number | null;
   target: number;
   actual: number;
@@ -568,7 +571,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
   }, [view]);
 
   /**
-   * Per owner + objective: the plan's per-objective targets (cfm_planweekobjective)
+   * Per owner + plan week + objective: the plan's per-objective targets (cfm_planweekobjective)
    * vs. the activities logged with that objective in the same plan weeks, plus
    * how those activities ended (cfm_outcome). Activities reuse `view`, so the
    * month/owner/status/search/region filters all apply; targets get the same
@@ -578,11 +581,11 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
   const objectiveSummaries = useMemo(() => {
     const q = query.trim().toLowerCase();
     const groups = new Map<string, ObjectiveSummary>();
-    const group = (ownerName: string, objective: number | null) => {
-      const key = `${ownerName}|${objective ?? 'none'}`;
+    const group = (ownerName: string, year: number, month: number, week: number, objective: number | null) => {
+      const key = `${ownerName}|${year}|${month}|${week}|${objective ?? 'none'}`;
       let g = groups.get(key);
       if (!g) {
-        g = { key, ownerName, objective, target: 0, actual: 0, outcomes: new Map() };
+        g = { key, ownerName, year, month, week, objective, target: 0, actual: 0, outcomes: new Map() };
         groups.set(key, g);
       }
       return g;
@@ -592,10 +595,10 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
       if (monthFilter && monthKeyOf(t.year, t.month) !== monthFilter) return;
       if (ownerFilter && t.ownerName !== ownerFilter) return;
       if (region && (region === 'KSA' ? t.region !== 'KSA' : t.region === 'KSA')) return;
-      group(t.ownerName, t.objective).target += t.target;
+      group(t.ownerName, t.year, t.month, t.week, t.objective).target += t.target;
     });
     view.forEach((r) => {
-      const g = group(r.ownerName, r.objective);
+      const g = group(r.ownerName, r.expectedYear, r.expectedMonth, r.expectedWeek, r.objective);
       g.actual++;
       const outcome = r.outcome ?? NO_OUTCOME;
       g.outcomes.set(outcome, (g.outcomes.get(outcome) || 0) + 1);
@@ -603,7 +606,14 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
     const objectiveOrder = (o: number | null) => (o == null ? 99 : OBJECTIVE_OPTIONS.findIndex((x) => x.value === o));
     return Array.from(groups.values())
       .filter((g) => g.target > 0 || g.actual > 0)
-      .sort((a, b) => a.ownerName.localeCompare(b.ownerName) || objectiveOrder(a.objective) - objectiveOrder(b.objective));
+      .sort(
+        (a, b) =>
+          a.ownerName.localeCompare(b.ownerName) ||
+          a.year - b.year ||
+          a.month - b.month ||
+          a.week - b.week ||
+          objectiveOrder(a.objective) - objectiveOrder(b.objective)
+      );
   }, [objectiveTargets, view, query, monthFilter, ownerFilter, region]);
 
   const objectiveLabel = (o: number | null) => (o == null ? 'Not set' : optionLabel(OBJECTIVE_OPTIONS, o) || `#${o}`);
@@ -703,12 +713,14 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
         Array.from(weekGroups.values()).map((g) => [g.r.ownerName, monthLabel(g.r), weekLabel(g.r), target(g.r), g.same, g.wrong, g.total, g.double, g.repeated])
       );
 
-      // ---- Objectives: per owner + objective, target vs. actual + outcomes ----
+      // ---- Objectives: per owner + week + objective, target vs. actual + outcomes ----
       const outcomeCols = [...OUTCOME_OPTIONS.map((o) => o.value as number), NO_OUTCOME];
       addSheet(
         'Objectives',
         [
           { header: 'Agent', width: 28 },
+          { header: 'Month', width: 16 },
+          { header: 'Week', width: 10 },
           { header: 'Objective', width: 26 },
           { header: 'Target', width: 10 },
           { header: 'Actual', width: 10 },
@@ -719,6 +731,8 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
           const pct = pctOf(s.actual, s.target);
           return [
             s.ownerName,
+            `${MONTHS[s.month]} ${s.year}`,
+            `Week ${s.week}`,
             objectiveLabel(s.objective),
             s.target,
             s.actual,
@@ -847,7 +861,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
         </div>
         <div className="acc-actions">
           <button className="acc-btn" onClick={exportAudit} disabled={exporting || loading || !view.length}>
-            <Icon className="fa-solid fa-download" /> {exporting ? 'Exporting…' : 'Export Audit'}
+            <Icon className="fa-solid fa-download" /> {exporting ? 'Exporting…' : 'Export'}
           </button>
         </div>
       </div>
@@ -861,6 +875,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
             <span className="kpi-label">Total activities</span>
           </div>
           <div className="kpi-value">{loading ? '—' : summary.total}</div>
+          <div className="kpi-context">{loading ? ' ' : `${summary.compliance.toFixed(0)}% timing compliance`}</div>
         </div>
         <div className="kpi-card kpi-ok">
           <div className="kpi-top">
@@ -870,6 +885,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
             <span className="kpi-label">On-time</span>
           </div>
           <div className="kpi-value">{loading ? '—' : summary.onTime}</div>
+          <div className="kpi-context">{loading ? ' ' : summary.total ? `${Math.round((summary.onTime / summary.total) * 100)}% of activities` : '—'}</div>
         </div>
         <div className="kpi-card kpi-warn">
           <div className="kpi-top">
@@ -879,6 +895,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
             <span className="kpi-label">Late (same week)</span>
           </div>
           <div className="kpi-value">{loading ? '—' : summary.late}</div>
+          <div className="kpi-context">{loading ? ' ' : summary.total ? `${Math.round((summary.late / summary.total) * 100)}% of activities` : '—'}</div>
         </div>
         <div className="kpi-card kpi-danger">
           <div className="kpi-top">
@@ -888,6 +905,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
             <span className="kpi-label">Wrong week / month</span>
           </div>
           <div className="kpi-value">{loading ? '—' : summary.wrong}</div>
+          <div className="kpi-context">{loading ? ' ' : summary.total ? `${Math.round((summary.wrong / summary.total) * 100)}% of activities` : '—'}</div>
         </div>
       </div>
 
@@ -900,6 +918,38 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
 
       <div className="tbl-shell">
         <div className="tbl-hdr">
+          <div className="dm-filter-bar">
+            <div className="acc-search">
+              <Icon className="fa-solid fa-magnifying-glass" />
+              <input placeholder="Search task owner…" value={query} onChange={(e) => setQuery(e.target.value)} />
+            </div>
+            <select className="acc-f" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}>
+              <option value="">All months</option>
+              {monthOptions.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <select className="acc-f" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
+              <option value="">All owners</option>
+              {ownerOptions.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+            <select className="acc-f" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as '' | AuditStatus)}>
+              <option value="">All statuses</option>
+              {(Object.keys(STATUS_LABEL) as AuditStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="va-subhdr">
           <h2 className="va-sec-title">Per task owner</h2>
         </div>
         <div className="acc-tablewrap">
@@ -961,36 +1011,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
 
       <div className="tbl-shell">
         <div className="tbl-hdr">
-          <div className="dm-filter-bar">
-            <div className="acc-search">
-              <Icon className="fa-solid fa-magnifying-glass" />
-              <input placeholder="Search task owner…" value={query} onChange={(e) => setQuery(e.target.value)} />
-            </div>
-            <select className="acc-f" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}>
-              <option value="">All months</option>
-              {monthOptions.map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <select className="acc-f" value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
-              <option value="">All owners</option>
-              {ownerOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <select className="acc-f" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as '' | AuditStatus)}>
-              <option value="">All statuses</option>
-              {(Object.keys(STATUS_LABEL) as AuditStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
-          </div>
+          <h2 className="va-sec-title">Activities</h2>
           <div className="dm-count">
             <Icon className="fa-solid fa-list-check" /> {view.length} {view.length === 1 ? 'activity' : 'activities'}
           </div>

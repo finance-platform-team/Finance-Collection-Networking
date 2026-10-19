@@ -13,6 +13,7 @@ import AgentsPage from './pages/Agents';
 import VisitsPage from './pages/Visits';
 import VisitPlanPage from './pages/VisitPlan';
 import VisitAuditPage from './pages/VisitAudit';
+import ActivityCommunicationPage from './pages/ActivityCommunication';
 
 function App() {
   const [page, setPage] = useState<PageKey>('visit-plan');
@@ -48,6 +49,8 @@ function App() {
         <VisitPlanPage region={region} />
       ) : page === 'visit-audit' ? (
         <VisitAuditPage region={region} />
+      ) : page === 'activity-communication' ? (
+        <ActivityCommunicationPage region={region} onNavigate={setPage} />
       ) : (
         <VisitsPage region={region} />
       )}

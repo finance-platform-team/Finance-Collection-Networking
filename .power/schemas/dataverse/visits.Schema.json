@@ -203,6 +203,69 @@
           "x-ms-schema-name": "cfm_outcomeName",
           "x-ms-read-only": true
         },
+        "cfm_reviewed": {
+          "type": "string",
+          "title": "Reviewed",
+          "x-ms-dataverse-attribute": "cfm_reviewed",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "cfm_Reviewed",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "568e4b7a-d9ca-f111-a05c-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Reviewed",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "cfm_reviewedby": {
+          "type": "string",
+          "title": "reviewed by",
+          "x-ms-dataverse-attribute": "cfm_reviewedby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "cfm_reviewedby"
+        },
+        "cfm_reviewedbyname": {
+          "type": "string",
+          "title": "cfm_reviewedbyname",
+          "x-ms-dataverse-attribute": "cfm_reviewedbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "cfm_reviewedbyName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "cfm_reviewedbyyominame": {
+          "type": "string",
+          "title": "cfm_reviewedbyyominame",
+          "x-ms-dataverse-attribute": "cfm_reviewedbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "cfm_reviewedbyYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "cfm_reviewedname": {
+          "type": "string",
+          "title": "cfm_reviewedname",
+          "x-ms-dataverse-attribute": "cfm_reviewedname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cfm_reviewedName",
+          "x-ms-read-only": true
+        },
+        "cfm_reviewedon": {
+          "type": "string",
+          "title": "Reviewed on",
+          "x-ms-dataverse-attribute": "cfm_reviewedon",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "cfm_Reviewedon"
+        },
         "cfm_revisitdate": {
           "type": "string",
           "title": "Revisit Date",
@@ -682,7 +745,8 @@
             "Non-Physical Visit",
             "Check Visit",
             "Meeting",
-            "123 Tour "
+            "123 Tour ",
+            "Call"
           ],
           "x-ms-enum-values": [
             983080000,
@@ -691,7 +755,8 @@
             989230001,
             989230002,
             983080003,
-            983080004
+            983080004,
+            124700001
           ],
           "Color": [
             "#e1e6f7",
@@ -700,7 +765,8 @@
             "#fc7272",
             "#97bdf7",
             "#bf3dbb",
-            "#999999"
+            "#999999",
+            null
           ],
           "x-ms-optionsetmetadataid": "06b11690-1c90-f011-b4cc-002248862efd",
           "x-ms-isGlobal": true,
@@ -925,7 +991,9 @@
             "Credit",
             "Cash Account",
             "Other",
-            "KSA · District BD"
+            "KSA · District BD",
+            "Industry",
+            "Managerial"
           ],
           "x-ms-enum-values": [
             983080000,
@@ -952,7 +1020,9 @@
             124700010,
             124700011,
             124700012,
-            124700013
+            124700013,
+            983080003,
+            983080004
           ],
           "Color": [
             "#9cbfd6",
@@ -979,6 +1049,8 @@
             null,
             null,
             null,
+            null,
+            null,
             null
           ],
           "x-ms-optionsetmetadataid": "be6fe7ab-898c-f011-b4cc-6045bdf37b46",
@@ -992,6 +1064,241 @@
           "x-ms-dataverse-attribute": "ms_accounttypename",
           "x-ms-dataverse-type": "VirtualType",
           "x-ms-schema-name": "ms_accounttypeName",
+          "x-ms-read-only": true
+        },
+        "ms_activitycategory": {
+          "type": "string",
+          "title": "Activity Category",
+          "x-ms-dataverse-attribute": "ms_activitycategory",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_ActivityCategory",
+          "enum": [
+            "Opportunity",
+            "Deficit",
+            "Issue"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "d405e1fe-5ec9-f111-a05c-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Activity Category",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_activitycategoryname": {
+          "type": "string",
+          "title": "ms_activitycategoryname",
+          "x-ms-dataverse-attribute": "ms_activitycategoryname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_activitycategoryName",
+          "x-ms-read-only": true
+        },
+        "ms_activityintent": {
+          "type": "string",
+          "title": "Activity Intent",
+          "x-ms-dataverse-attribute": "ms_activityintent",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_ActivityIntent",
+          "enum": [
+            "Transactional",
+            "Non-transactional"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "37c68d44-5fc9-f111-a05c-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Activity Intent",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_activityintentname": {
+          "type": "string",
+          "title": "ms_activityintentname",
+          "x-ms-dataverse-attribute": "ms_activityintentname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_activityintentName",
+          "x-ms-read-only": true
+        },
+        "ms_activityobjective": {
+          "type": "string",
+          "title": "Activity objective",
+          "x-ms-dataverse-attribute": "ms_activityobjective",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Activityobjective",
+          "enum": [
+            "1",
+            "2"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "5d7a7c23-64c9-f111-a05c-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Activity objective",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_activityobjectivename": {
+          "type": "string",
+          "title": "ms_activityobjectivename",
+          "x-ms-dataverse-attribute": "ms_activityobjectivename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_activityobjectiveName",
+          "x-ms-read-only": true
+        },
+        "ms_activityoutcomecomment": {
+          "type": "string",
+          "title": "Activity outcome comment",
+          "x-ms-dataverse-attribute": "ms_activityoutcomecomment",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_Activityoutcomecomment",
+          "maxLength": 1000
+        },
+        "ms_activityreason": {
+          "type": "string",
+          "title": "Activity Reason",
+          "x-ms-dataverse-attribute": "ms_activityreason",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_ActivityReason",
+          "enum": [
+            "Renew Existing Contracts · Opportunity · max 2/mo",
+            "Expand Services within Existing Accounts · Opportunity · max 2/mo",
+            "Strengthen Relationship with Key Stakeholders · Opportunity · max 2/mo",
+            "Promote Physician Referral Pathway · Opportunity · max 1/mo",
+            "Increase Specialty Referrals · Opportunity · max 1/mo",
+            "New Contract Deal · Opportunity · max 1/mo",
+            "Contract Activation · Opportunity · max 1/mo",
+            "Follow Up Activity Opportunities with New Accounts · Opportunity · max 2/mo",
+            "Identify New Onsite Clinic Opportunities · Opportunity · max 1/mo",
+            "Activities Refusal · Deficit · max 1/mo",
+            "Improve Activity-to-Referral Conversion · Deficit · max 1/mo",
+            "Service Gap Identification · Deficit · max 1/mo",
+            "Resolve Patient Complaints · Issue · max 2/mo",
+            "Review Escalated Cases · Issue · max 1/mo",
+            "Complaint & Escalation Management · Issue · max 1/mo",
+            "Coordinate Account Operational Requirements · Issue · max 1/mo",
+            "Discuss Billing Process · Issue · max 1/mo",
+            "Strategic / investor engagement · Opportunity · max 2/mo"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006,
+            124700007,
+            124700008,
+            124700009,
+            124700010,
+            124700011,
+            124700012,
+            124700013,
+            124700014,
+            124700015,
+            124700016,
+            124700017
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "37613f35-5ec9-f111-a05c-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Activity Reason",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_activityreasonname": {
+          "type": "string",
+          "title": "ms_activityreasonname",
+          "x-ms-dataverse-attribute": "ms_activityreasonname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_activityreasonName",
+          "x-ms-read-only": true
+        },
+        "ms_activitysource": {
+          "type": "string",
+          "title": "Activity Source",
+          "x-ms-dataverse-attribute": "ms_activitysource",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_ActivitySource",
+          "enum": [
+            "Self-planned",
+            "Sales request",
+            "HR deficit alert",
+            "Escalation",
+            "Managerial action plan",
+            "Communication plan",
+            "Campaign",
+            "Conference / committee",
+            "CEO-directed"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006,
+            124700007,
+            124700008
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "f40c4467-5dc9-f111-a05c-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Activity Source",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_activitysourcename": {
+          "type": "string",
+          "title": "ms_activitysourcename",
+          "x-ms-dataverse-attribute": "ms_activitysourcename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_activitysourceName",
           "x-ms-read-only": true
         },
         "ms_approvalstatus": {
@@ -1030,6 +1337,38 @@
           "x-ms-dataverse-type": "VirtualType",
           "x-ms-schema-name": "ms_approvalstatusName",
           "x-ms-read-only": true
+        },
+        "ms_approverorrejecterby": {
+          "type": "string",
+          "title": "Approver or Rejecter By",
+          "x-ms-dataverse-attribute": "ms_approverorrejecterby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ms_ApproverorRejecterBy"
+        },
+        "ms_approverorrejecterbyname": {
+          "type": "string",
+          "title": "ms_approverorrejecterbyname",
+          "x-ms-dataverse-attribute": "ms_approverorrejecterbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_ApproverorRejecterByName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "ms_approverorrejecterbyyominame": {
+          "type": "string",
+          "title": "ms_approverorrejecterbyyominame",
+          "x-ms-dataverse-attribute": "ms_approverorrejecterbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_ApproverorRejecterByYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "ms_approverorrejecterdate": {
+          "type": "string",
+          "title": "Approver or Rejecter Date",
+          "x-ms-dataverse-attribute": "ms_approverorrejecterdate",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "ms_ApproverorRejecterDate"
         },
         "ms_branchname": {
           "type": "string",
@@ -1604,6 +1943,49 @@
           "x-ms-schema-name": "ms_SpecialtyName",
           "x-ms-read-only": true,
           "maxLength": 850
+        },
+        "ms_strategyactivity": {
+          "type": "string",
+          "title": "STRATEGY Activity",
+          "x-ms-dataverse-attribute": "ms_strategyactivity",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_STRATEGYActivity",
+          "enum": [
+            "FY26 Referral growth — Medical network",
+            "FY26 Contracted lives — Corporate accounts",
+            "FY26 Brand reach — Community partners",
+            "FY26 Onsite clinic expansion",
+            "FY26 Capital access — Investment institutions",
+            "FY26 Recovery of deficit accounts"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "05b145f4-5cc9-f111-a05c-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "STRATEGY Activity",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_strategyactivityname": {
+          "type": "string",
+          "title": "ms_strategyactivityname",
+          "x-ms-dataverse-attribute": "ms_strategyactivityname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_strategyactivityName",
+          "x-ms-read-only": true
         },
         "ms_titleofemp": {
           "type": "string",

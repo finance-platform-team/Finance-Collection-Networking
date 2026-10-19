@@ -6,6 +6,7 @@
 // Models
 export * as Ar_disputemanagementsModel from './models/Ar_disputemanagementsModel';
 export * as BusinessunitsModel from './models/BusinessunitsModel';
+export * as Cfm_activitymessagesModel from './models/Cfm_activitymessagesModel';
 export * as Cfm_aragingsModel from './models/Cfm_aragingsModel';
 export * as Cfm_collectionmonthallocationsModel from './models/Cfm_collectionmonthallocationsModel';
 export * as Cfm_collectionplanweeksModel from './models/Cfm_collectionplanweeksModel';
@@ -33,6 +34,7 @@ export * as SystemusersModel from './models/SystemusersModel';
 // Services
 export * from './services/Ar_disputemanagementsService';
 export * from './services/BusinessunitsService';
+export * from './services/Cfm_activitymessagesService';
 export * from './services/Cfm_aragingsService';
 export * from './services/Cfm_collectionmonthallocationsService';
 export * from './services/Cfm_collectionplanweeksService';

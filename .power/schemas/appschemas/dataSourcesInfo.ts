@@ -19,6 +19,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "cfm_activitymessages": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "cfm_activitymessageid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "cr301_agents": {
     "tableId": "",
     "version": "",

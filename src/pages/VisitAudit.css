@@ -5,6 +5,9 @@
    specific to this page lives here. */
 
 .va-sec-title{font-family:'Outfit',sans-serif;font-weight:700;font-size:15px;color:var(--ink);margin:0}
+/* Title strip under the shared filter bar (filters sit on the first card because
+   they drive the KPIs and both tables, not just the activity list). */
+.va-subhdr{padding:12px 16px;border-bottom:1px solid var(--line)}
 
 .vis-muted{color:var(--muted)}
 

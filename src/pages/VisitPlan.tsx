@@ -1280,14 +1280,14 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
             <div className="acc-sub">Task owner · Monthly planned / achieved · Weekly planned / achieved · Achievement %</div>
           </div>
           <div className="acc-actions">
-            <button className="acc-btn acc-btn-primary" onClick={openWizard}>
-              <Icon className="fa-solid fa-plus" /> Create KPI achievement
-            </button>
             <button className="acc-btn" onClick={exportCsv}>
               <Icon className="fa-solid fa-download" /> Export
             </button>
             <button className="acc-btn" onClick={exportCsvByWeek}>
               <Icon className="fa-solid fa-download" /> Export by Week
+            </button>
+            <button className="acc-btn acc-btn-primary" onClick={openWizard}>
+              <Icon className="fa-solid fa-plus" /> Create KPI achievement
             </button>
           </div>
         </div>

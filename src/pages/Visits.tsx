@@ -17,7 +17,7 @@ import { operationErrorMessage } from '../lib/errors';
 import { fetchAll } from '../lib/dataverse';
 import { visitStatusClass } from '../lib/visitStatus';
 import { escapeForCsv, downloadCsv } from '../lib/csvExport';
-import { fetchStakeholdersByAccount } from '../lib/stakeholders';
+import { fetchStakeholdersByAccount, initials } from '../lib/stakeholders';
 import type { Stakeholder } from '../lib/stakeholders';
 import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabel } from '../lib/activityOptions';
 import type { Region } from '../lib/useRegion';
@@ -243,6 +243,76 @@ function needsFollowThrough(action: string): boolean {
   return action !== '' && Number(action) !== ACTION_ACHIEVED;
 }
 
+// Pill tone per cfm_outcome — reuses the shared acc-visit-status-* palette.
+const OUTCOME_TONE: Record<number, 'ok' | 'info' | 'warn' | 'bad' | 'none'> = {
+  766340000: 'ok', // Full Payment
+  766340001: 'info', // Partial Payment
+  766340002: 'bad', // No Payment
+  766340003: 'none', // Just Follow-up
+  766340004: 'warn', // Promise to Pay
+  766340005: 'warn', // Missing Doc
+  766340006: 'bad', // Escalated
+};
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** A follow-through Next Action whose due date has already passed. */
+function isOverdue(v: { action: number | null; dueDate: string }): boolean {
+  return v.action != null && needsFollowThrough(String(v.action)) && !!v.dueDate && v.dueDate.slice(0, 10) < todayIso();
+}
+
+interface ChipOption {
+  value: number | string;
+  label: string;
+}
+
+/** Single-choice chip picker used across the Add/Edit Activity form. */
+function ChipGroup({
+  options,
+  value,
+  onChange,
+  disabled,
+  columns,
+  allowClear,
+}: {
+  options: ChipOption[];
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  columns?: 2;
+  allowClear?: boolean;
+}) {
+  return (
+    <div className={`vis-chips${columns ? ' vis-chips-2' : ''}`} role="radiogroup">
+      {options.map((o) => {
+        const on = value === String(o.value);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            disabled={disabled}
+            className={`vis-chip${on ? ' on' : ''}`}
+            onClick={() => onChange(on && allowClear ? '' : String(o.value))}
+          >
+            <span className="vis-chip-dot">{on && <Icon className="fa-solid fa-check" />}</span>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const VISIT_TYPE_CHIPS: ChipOption[] = [
+  { value: 'single', label: 'Single' },
+  { value: 'double', label: 'Double' },
+];
+
 /** Every status except Cancelled counts toward the KPI Actual. */
 function countsTowardActual(status: number): boolean {
   return status !== VISIT_STATUS_CANCELLED;
@@ -442,6 +512,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
   const [formStakeholderId, setFormStakeholderId] = useState('');
   const [stakeholdersByAccount, setStakeholdersByAccount] = useState<Map<string, Stakeholder[]>>(new Map());
   const [formError, setFormError] = useState('');
+  // Per-field validation messages, shown under each field instead of one banner.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   const [toastMsg, setToastMsg] = useState('');
@@ -676,7 +748,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
     const uniqueCompanies = new Set(view.filter((v) => v.accountId).map((v) => v.accountId)).size;
     const open = view.filter((v) => v.status === VISIT_STATUS_OPEN).length;
     const completed = view.filter((v) => v.status === 983080001).length;
-    return { total: view.length, uniqueCompanies, open, completed };
+    const overdue = view.filter(isOverdue).length;
+    return { total: view.length, uniqueCompanies, open, completed, overdue };
   }, [view]);
 
   const selectedAccount = useMemo(() => accounts.find((a) => a.id === formAccountId) || null, [accounts, formAccountId]);
@@ -693,6 +766,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
 
   function openDrawer(row?: VisitRow) {
     setFormError('');
+    setFieldErrors({});
     setEditOriginal(row || null);
     if (row) {
       setEditId(row.id);
@@ -741,43 +815,32 @@ export default function VisitsPage({ region }: VisitsPageProps) {
     setDrawerOpen(false);
   }
 
-  async function handleSave() {
-    if (!formAccountId) {
-      setFormError('Company is required.');
-      return;
-    }
-    if (!formAgentId) {
-      setFormError('Task Owner is required.');
-      return;
-    }
-    const isDouble = formVisitType === 'double';
-    if (isDouble && !formAgent2Id) {
-      setFormError('Task Owner 2 is required for a double activity.');
-      return;
-    }
-    if (isDouble && formAgent2Id && formAgentId === formAgent2Id) {
-      setFormError('Task Owner 2 must be different from Task Owner.');
-      return;
-    }
-    if (parseInt(formStatus, 10) !== VISIT_STATUS_OPEN && !formDate) {
-      setFormError('Activity Date is required once the status is no longer Open.');
-      return;
-    }
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
-    if (!formObjective) {
-      setFormError('Objective is required.');
-      return;
-    }
-    if (!formOutcome) {
-      setFormError('Outcome is required.');
-      return;
-    }
-    if (!formAction) {
-      setFormError('Next Action is required.');
-      return;
-    }
-    if (!formStakeholderId) {
-      setFormError('Stakeholder Dealt With is required.');
+  async function handleSave() {
+    const isDouble = formVisitType === 'double';
+    const errors: Record<string, string> = {};
+    if (!formAccountId) errors.company = 'Pick a company.';
+    if (!formAgentId) errors.agent = 'Pick the task owner.';
+    if (isDouble && !formAgent2Id) errors.agent2 = 'A double activity needs a second task owner.';
+    else if (isDouble && formAgentId === formAgent2Id) errors.agent2 = 'Must be different from the task owner.';
+    if (parseInt(formStatus, 10) !== VISIT_STATUS_OPEN && !formDate) errors.date = 'Required once the status is no longer Open.';
+    if (!formObjective) errors.objective = 'Choose an objective.';
+    if (!formOutcome) errors.outcome = 'Choose an outcome.';
+    else if (!formAction) errors.action = 'Choose the next action.';
+    if (!formStakeholderId) errors.stakeholder = formAccountId ? 'Choose who you dealt with.' : 'Pick a company first.';
+    setFieldErrors(errors);
+    const firstInvalid = Object.keys(errors)[0];
+    if (firstInvalid) {
+      setFormError('');
+      document.querySelector(`[data-field="${firstInvalid}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
@@ -981,14 +1044,14 @@ export default function VisitsPage({ region }: VisitsPageProps) {
         <div className="acc-head">
           <div>
             <h1 className="acc-title">Activities Log</h1>
-            <div className="acc-sub">Recorded activities — Task Owner · Company · Activity Date · Activity Status · Activity Type · Revisit · Comments</div>
+            <div className="acc-sub">Every collection activity — who went where, why, what came of it, and what happens next</div>
           </div>
           <div className="acc-actions">
-            <button className="acc-btn acc-btn-primary" onClick={() => openDrawer()}>
-              <Icon className="fa-solid fa-plus" /> Add Activity
-            </button>
             <button className="acc-btn" onClick={exportCsv}>
               <Icon className="fa-solid fa-download" /> Export
+            </button>
+            <button className="acc-btn acc-btn-primary" onClick={() => openDrawer()}>
+              <Icon className="fa-solid fa-plus" /> Add Activity
             </button>
           </div>
         </div>
@@ -1038,6 +1101,16 @@ export default function VisitsPage({ region }: VisitsPageProps) {
               {loading ? '' : kpis.total > 0 ? `${Math.round((kpis.completed / kpis.total) * 100)}% of activities` : '—'}
             </div>
           </div>
+          <div className={`kpi-card${kpis.overdue > 0 ? ' kpi-danger' : ''}`}>
+            <div className="kpi-top">
+              <span className={`kpi-icon ${kpis.overdue > 0 ? 'kpi-icon-danger' : 'kpi-icon-gold'}`}>
+                <Icon className="fa-solid fa-hourglass-half" />
+              </span>
+              <span className="kpi-label">Overdue follow-ups</span>
+            </div>
+            <div className="kpi-value">{loading ? '—' : kpis.overdue}</div>
+            <div className="kpi-context">{loading ? '' : kpis.overdue > 0 ? 'Next action past its due date' : 'All follow-ups on track'}</div>
+          </div>
         </div>
 
         <div className="tbl-shell">
@@ -1075,26 +1148,25 @@ export default function VisitsPage({ region }: VisitsPageProps) {
           </div>
 
           <div className="acc-tablewrap">
-          <table>
+          <table className="vis-table">
             <thead>
               <tr>
-                <th>Task Owner</th>
-                <th>Task Owner 2</th>
                 <th>Company</th>
+                <th>Task Owner</th>
                 <th>Activity Date</th>
-                <th>Activity Status</th>
-                <th>Type</th>
-                <th>Revisit</th>
-                <th>Comments</th>
-                <th>Created On</th>
-                <th>Region</th>
+                <th>Objective</th>
+                <th>Outcome</th>
+                <th>Next Action</th>
+                <th>Stakeholder</th>
+                <th>Status</th>
+                <th aria-label="Open"></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 10 }).map((__, j) => (
+                    {Array.from({ length: 9 }).map((__, j) => (
                       <td key={j}>
                         <div className="acc-skel"></div>
                       </td>
@@ -1103,7 +1175,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                 ))
               ) : loadError ? (
                 <tr>
-                  <td colSpan={10}>
+                  <td colSpan={9}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-triangle-exclamation" />
                       Could not load activities.
@@ -1114,7 +1186,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                 </tr>
               ) : pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10}>
+                  <td colSpan={9}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-inbox" />
                       No activities match your filters.
@@ -1123,35 +1195,76 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                 </tr>
               ) : (
                 pageRows.map((v) => {
+                  const overdue = isOverdue(v);
+                  const followThrough = v.action != null && needsFollowThrough(String(v.action));
                   return (
                     <tr key={v.id} className="acc-row" onClick={() => openDrawer(v)}>
-                      <td className="acc-name">{v.owner}</td>
-                      <td>{v.owner2 ? <span className="acc-name">{v.owner2}</span> : <span className="vis-muted">—</span>}</td>
                       <td>
                         <div className="acc-name">{v.company}</div>
-                        {v.code && <div className="acc-code">{v.code}</div>}
+                        <div className="vis-sub">
+                          {v.code && <span className="acc-code">{v.code}</span>}
+                          {v.region && <span className="vis-tag">{v.region === 'KSA' ? 'KSA' : 'Egypt'}</span>}
+                        </div>
                       </td>
-                      <td>{v.date ? fmtDate(v.date) : <span className="vis-muted">—</span>}</td>
+                      <td>
+                        <div className="vis-owner">
+                          <span className="vis-avatar" aria-hidden="true">
+                            {initials(v.owner)}
+                          </span>
+                          <div>
+                            <div className="vis-owner-name">{v.owner}</div>
+                            {v.isDouble ? (
+                              <div className="vis-sub vis-double">
+                                <Icon className="fa-solid fa-users" /> with {v.owner2 || '—'}
+                              </div>
+                            ) : (
+                              <div className="vis-sub">Single</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="vis-nowrap">
+                        <div>{v.date ? fmtDate(v.date) : <span className="vis-muted">Not set</span>}</div>
+                        <div className="vis-sub">
+                          Logged {fmtDate(v.createdon)}
+                          {v.revisit ? ` · Revisit ${fmtDate(v.revisit)}` : ''}
+                        </div>
+                      </td>
+                      <td>{v.objective != null ? optionLabel(OBJECTIVE_OPTIONS, v.objective) : <span className="vis-muted">—</span>}</td>
+                      <td>
+                        {v.outcome != null ? (
+                          <span className={`acc-visit-status acc-visit-status-${OUTCOME_TONE[v.outcome] || 'none'}`}>
+                            {optionLabel(OUTCOME_OPTIONS, v.outcome)}
+                          </span>
+                        ) : (
+                          <span className="vis-muted">—</span>
+                        )}
+                      </td>
+                      <td>
+                        {v.action == null ? (
+                          <span className="vis-muted">—</span>
+                        ) : (
+                          <>
+                            <div className="vis-action-name">{optionLabel(ACTION_OPTIONS, v.action)}</div>
+                            {followThrough && (v.dueDate || v.actionOwner) && (
+                              <div className={`vis-sub${overdue ? ' vis-overdue' : ''}`}>
+                                {overdue && <Icon className="fa-solid fa-circle-exclamation" />}
+                                {v.dueDate ? `${overdue ? 'Overdue' : 'Due'} ${fmtDate(v.dueDate)}` : ''}
+                                {v.dueDate && v.actionOwner ? ' · ' : ''}
+                                {v.actionOwner}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </td>
+                      <td>{v.stakeholder || <span className="vis-muted">—</span>}</td>
                       <td>
                         <span className={`acc-visit-status ${visitStatusClass(v.statusLabel)}`}>{v.statusLabel}</span>
                       </td>
-                      <td>
-                        {v.isDouble ? (
-                          <span className="vis-vt vis-vt-double">
-                            <Icon className="fa-solid fa-users" /> Double
-                          </span>
-                        ) : (
-                          <span className="vis-vt">
-                            <Icon className="fa-solid fa-user" /> Single
-                          </span>
-                        )}
+                      <td className="vis-go">
+                        {v.notes && <Icon className="fa-solid fa-comment" title={v.notes} />}
+                        <Icon className="fa-solid fa-chevron-right" />
                       </td>
-                      <td>{v.revisit ? fmtDate(v.revisit) : <span className="vis-muted">—</span>}</td>
-                      <td>
-                        <div className="vis-notes">{v.notes || <span className="vis-muted">—</span>}</div>
-                      </td>
-                      <td>{v.createdon ? fmtDate(v.createdon) : <span className="vis-muted">—</span>}</td>
-                      <td>{v.region ? (v.region === 'KSA' ? 'KSA' : 'Egypt') : <span className="vis-muted">—</span>}</td>
                     </tr>
                   );
                 })
@@ -1200,148 +1313,127 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       </div>
 
       <div className={`acc-scrim${drawerOpen ? ' on' : ''}`} onClick={closeDrawer}></div>
-      <aside className={`acc-drawer${drawerOpen ? ' on' : ''}`}>
+      <aside className={`acc-drawer vis-drawer${drawerOpen ? ' on' : ''}`}>
         <div className="acc-dhead">
-          <h2>
-            <Icon className={`fa-solid ${editId ? 'fa-pen' : 'fa-plus'}`} style={{ color: 'var(--gold)', fontSize: editId ? 15 : 16 }} />
-            {editId ? 'Edit Activity' : 'Add Activity'}
-          </h2>
-          <button className="acc-dclose" onClick={closeDrawer}>
+          <div>
+            <h2>
+              <Icon className={`fa-solid ${editId ? 'fa-pen' : 'fa-plus'}`} style={{ color: 'var(--gold)', fontSize: editId ? 15 : 16 }} />
+              {editId ? 'Edit Activity' : 'Add Activity'}
+            </h2>
+            <div className="vis-dsub">
+              {editId && editOriginal
+                ? `${editOriginal.company} · logged ${fmtDate(editOriginal.createdon)}`
+                : 'Log a collection activity — its objective, result and next step.'}
+            </div>
+          </div>
+          <button className="acc-dclose" onClick={closeDrawer} aria-label="Close">
             <Icon className="fa-solid fa-xmark" />
           </button>
         </div>
         <div className="acc-dbody">
           <div className={`acc-err${formError ? ' on' : ''}`}>{formError}</div>
 
-          <div className="acc-fld">
-            <label>Company Name</label>
-            <div className="acc-combo">
-              <div className="acc-search">
-                <Icon className="fa-solid fa-magnifying-glass" />
-                <input
-                  placeholder="Search company or code…"
-                  autoComplete="off"
-                  disabled={!!editId}
-                  value={companyQuery}
-                  onChange={(e) => {
-                    setCompanyQuery(e.target.value);
-                    setFormAccountId('');
-                    setFormStakeholderId('');
-                    setCompanyPickerOpen(true);
-                  }}
-                  onFocus={() => setCompanyPickerOpen(true)}
-                  onBlur={() => setTimeout(() => setCompanyPickerOpen(false), 150)}
-                />
+          <section className="vis-sec">
+            <div className="vis-sec-head">
+              <span className="vis-sec-num">1</span>
+              <div>
+                <div className="vis-sec-title">Activity</div>
+                <div className="vis-sec-sub">Where, who and when</div>
               </div>
-              {companyPickerOpen && !editId && (
-                <div className="acc-combo-list">
-                  {companyMatches(companyQuery).length === 0 ? (
-                    <div className="acc-combo-empty">No matches.</div>
-                  ) : (
-                    companyMatches(companyQuery).map((a) => (
-                      <div key={a.id} className="acc-combo-item" onMouseDown={(ev) => ev.preventDefault()} onClick={() => pickCompany(a)}>
-                        {a.name}
-                      </div>
-                    ))
-                  )}
+            </div>
+
+            <div className={`acc-fld${fieldErrors.company ? ' vis-invalid' : ''}`} data-field="company">
+              <label>
+                Company <span className="dm-req">*</span>
+              </label>
+              <div className="acc-combo">
+                <div className="acc-search">
+                  <Icon className="fa-solid fa-magnifying-glass" />
+                  <input
+                    placeholder="Search company or code…"
+                    autoComplete="off"
+                    disabled={!!editId}
+                    value={companyQuery}
+                    onChange={(e) => {
+                      setCompanyQuery(e.target.value);
+                      setFormAccountId('');
+                      setFormStakeholderId('');
+                      setCompanyPickerOpen(true);
+                    }}
+                    onFocus={() => setCompanyPickerOpen(true)}
+                    onBlur={() => setTimeout(() => setCompanyPickerOpen(false), 150)}
+                  />
                 </div>
+                {companyPickerOpen && !editId && (
+                  <div className="acc-combo-list">
+                    {companyMatches(companyQuery).length === 0 ? (
+                      <div className="acc-combo-empty">No matches.</div>
+                    ) : (
+                      companyMatches(companyQuery).map((a) => (
+                        <div
+                          key={a.id}
+                          className="acc-combo-item"
+                          onMouseDown={(ev) => ev.preventDefault()}
+                          onClick={() => {
+                            pickCompany(a);
+                            clearFieldError('company');
+                          }}
+                        >
+                          {a.name}
+                          {a.code && <small>{a.code}</small>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              {fieldErrors.company ? (
+                <div className="vis-ferr">{fieldErrors.company}</div>
+              ) : (
+                selectedAccount?.code && (
+                  <div className="acc-hint">
+                    Company code <span className="acc-code">{selectedAccount.code}</span>
+                  </div>
+                )
               )}
             </div>
-          </div>
 
-          <div className="acc-fld">
-            <div className="acc-ro-wrap">
-              <div className="acc-ro-label">Company Code</div>
-              <div className="acc-ro-value">{selectedAccount?.code || '—'}</div>
-            </div>
-          </div>
-
-          <div className="acc-fld">
-            <label>Task Owner</label>
-            <div className="acc-combo">
-              <div className="acc-search">
-                <Icon className="fa-solid fa-magnifying-glass" />
-                <input
-                  placeholder="Search users…"
-                  autoComplete="off"
-                  disabled={!!editId}
-                  value={agentQuery}
-                  onChange={(e) => {
-                    setAgentQuery(e.target.value);
-                    setFormAgentId('');
-                    setAgentPickerOpen(true);
-                  }}
-                  onFocus={() => setAgentPickerOpen(true)}
-                  onBlur={() => setTimeout(() => setAgentPickerOpen(false), 150)}
-                />
-              </div>
-              {agentPickerOpen && !editId && (
-                <div className="acc-combo-list">
-                  {agentMatches(agentQuery).length === 0 ? (
-                    <div className="acc-combo-empty">No matches.</div>
-                  ) : (
-                    agentMatches(agentQuery).map((a) => (
-                      <div key={a.id} className="acc-combo-item" onMouseDown={(ev) => ev.preventDefault()} onClick={() => pickAgent(a)}>
-                        {a.name}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="acc-fld">
-            <label>Activity Date</label>
-            <input type="date" value={formDate} disabled={visitDateLocked} onChange={(e) => setFormDate(e.target.value)} />
-          </div>
-
-          <div className="acc-fld">
-            <label>Activity Status</label>
-            <select value={formStatus} onChange={(e) => setFormStatus(e.target.value)}>
-              {VISIT_STATUS_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="acc-fld">
-            <label>Activity Type</label>
-            <select value={formVisitType} disabled={!!editId} onChange={(e) => setFormVisitType(e.target.value as 'single' | 'double')}>
-              <option value="single">Single activity</option>
-              <option value="double">Double activity</option>
-            </select>
-          </div>
-
-          {formVisitType === 'double' && (
-            <div className="acc-fld">
-              <label>Task Owner 2</label>
+            <div className={`acc-fld${fieldErrors.agent ? ' vis-invalid' : ''}`} data-field="agent">
+              <label>
+                Task Owner <span className="dm-req">*</span>
+              </label>
               <div className="acc-combo">
                 <div className="acc-search">
                   <Icon className="fa-solid fa-magnifying-glass" />
                   <input
                     placeholder="Search users…"
                     autoComplete="off"
-                    disabled={agent2Locked}
-                    value={agent2Query}
+                    disabled={!!editId}
+                    value={agentQuery}
                     onChange={(e) => {
-                      setAgent2Query(e.target.value);
-                      setFormAgent2Id('');
-                      setAgent2PickerOpen(true);
+                      setAgentQuery(e.target.value);
+                      setFormAgentId('');
+                      setAgentPickerOpen(true);
                     }}
-                    onFocus={() => setAgent2PickerOpen(true)}
-                    onBlur={() => setTimeout(() => setAgent2PickerOpen(false), 150)}
+                    onFocus={() => setAgentPickerOpen(true)}
+                    onBlur={() => setTimeout(() => setAgentPickerOpen(false), 150)}
                   />
                 </div>
-                {agent2PickerOpen && !agent2Locked && (
+                {agentPickerOpen && !editId && (
                   <div className="acc-combo-list">
-                    {agentMatches(agent2Query).length === 0 ? (
+                    {agentMatches(agentQuery).length === 0 ? (
                       <div className="acc-combo-empty">No matches.</div>
                     ) : (
-                      agentMatches(agent2Query).map((a) => (
-                        <div key={a.id} className="acc-combo-item" onMouseDown={(ev) => ev.preventDefault()} onClick={() => pickAgent2(a)}>
+                      agentMatches(agentQuery).map((a) => (
+                        <div
+                          key={a.id}
+                          className="acc-combo-item"
+                          onMouseDown={(ev) => ev.preventDefault()}
+                          onClick={() => {
+                            pickAgent(a);
+                            clearFieldError('agent');
+                          }}
+                        >
                           {a.name}
                         </div>
                       ))
@@ -1349,114 +1441,252 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                   </div>
                 )}
               </div>
-              <div className="acc-hint">
-                The activity is counted as achieved for <b>both</b> task owners.
+              {fieldErrors.agent && <div className="vis-ferr">{fieldErrors.agent}</div>}
+            </div>
+
+            <div className="vis-grid2">
+              <div className={`acc-fld${fieldErrors.date ? ' vis-invalid' : ''}`} data-field="date">
+                <label>Activity Date</label>
+                <input
+                  type="date"
+                  value={formDate}
+                  disabled={visitDateLocked}
+                  onChange={(e) => {
+                    setFormDate(e.target.value);
+                    clearFieldError('date');
+                  }}
+                />
+                {fieldErrors.date && <div className="vis-ferr">{fieldErrors.date}</div>}
+              </div>
+              <div className="acc-fld">
+                <label>Status</label>
+                <select
+                  value={formStatus}
+                  onChange={(e) => {
+                    setFormStatus(e.target.value);
+                    clearFieldError('date');
+                  }}
+                >
+                  {VISIT_STATUS_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-          )}
 
-          <div className="acc-fld">
-            <label>
-              Objective <span className="dm-req">*</span>
-            </label>
-            <select value={formObjective} onChange={(e) => setFormObjective(e.target.value)}>
-              <option value="">— Select —</option>
-              {OBJECTIVE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="acc-fld">
-            <label>
-              Outcome <span className="dm-req">*</span>
-            </label>
-            <select value={formOutcome} onChange={(e) => setFormOutcome(e.target.value)}>
-              <option value="">— Select —</option>
-              {OUTCOME_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {formOutcome && (
             <div className="acc-fld">
-              <label>
-              Next Action <span className="dm-req">*</span>
-            </label>
-              <div className="vis-actions">
-                {ACTION_OPTIONS.map((o) => {
-                  const checked = formAction === String(o.value);
-                  return (
-                    <label key={o.value} className="vis-action">
-                      <input type="checkbox" checked={checked} onChange={() => setFormAction(checked ? '' : String(o.value))} />
-                      {o.label}
-                    </label>
-                  );
-                })}
-              </div>
-              {needsFollowThrough(formAction) && (
-                <div className="vis-followup">
-                  <div className="vis-followup-grid">
-                    <div>
-                      <label>Due Date</label>
-                      <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
-                    </div>
-                    <div>
-                      <label>Owner</label>
-                      <select value={formActionOwnerId} onChange={(e) => setFormActionOwnerId(e.target.value)}>
-                        <option value="">— Select —</option>
-                        {/* Keep a saved owner selectable even if they're outside the current region roster. */}
-                        {formActionOwnerId && !regionAgentOptions.some((a) => a.id === formActionOwnerId) && (
-                          <option value={formActionOwnerId}>{editOriginal?.actionOwner || '(agent)'}</option>
-                        )}
-                        {regionAgentOptions.map((a) => (
-                          <option key={a.id} value={a.id}>
+              <label>Activity Type</label>
+              <ChipGroup
+                options={VISIT_TYPE_CHIPS}
+                value={formVisitType}
+                columns={2}
+                disabled={!!editId}
+                onChange={(val) => {
+                  setFormVisitType(val as 'single' | 'double');
+                  clearFieldError('agent2');
+                }}
+              />
+            </div>
+
+            {formVisitType === 'double' && (
+              <div className={`acc-fld${fieldErrors.agent2 ? ' vis-invalid' : ''}`} data-field="agent2">
+                <label>
+                  Task Owner 2 <span className="dm-req">*</span>
+                </label>
+                <div className="acc-combo">
+                  <div className="acc-search">
+                    <Icon className="fa-solid fa-magnifying-glass" />
+                    <input
+                      placeholder="Search users…"
+                      autoComplete="off"
+                      disabled={agent2Locked}
+                      value={agent2Query}
+                      onChange={(e) => {
+                        setAgent2Query(e.target.value);
+                        setFormAgent2Id('');
+                        setAgent2PickerOpen(true);
+                      }}
+                      onFocus={() => setAgent2PickerOpen(true)}
+                      onBlur={() => setTimeout(() => setAgent2PickerOpen(false), 150)}
+                    />
+                  </div>
+                  {agent2PickerOpen && !agent2Locked && (
+                    <div className="acc-combo-list">
+                      {agentMatches(agent2Query).length === 0 ? (
+                        <div className="acc-combo-empty">No matches.</div>
+                      ) : (
+                        agentMatches(agent2Query).map((a) => (
+                          <div
+                            key={a.id}
+                            className="acc-combo-item"
+                            onMouseDown={(ev) => ev.preventDefault()}
+                            onClick={() => {
+                              pickAgent2(a);
+                              clearFieldError('agent2');
+                            }}
+                          >
                             {a.name}
-                          </option>
-                        ))}
-                      </select>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {fieldErrors.agent2 ? (
+                  <div className="vis-ferr">{fieldErrors.agent2}</div>
+                ) : (
+                  <div className="acc-hint">
+                    The activity is counted as achieved for <b>both</b> task owners.
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="vis-sec">
+            <div className="vis-sec-head">
+              <span className="vis-sec-num">2</span>
+              <div>
+                <div className="vis-sec-title">Objective &amp; result</div>
+                <div className="vis-sec-sub">Why you went, what came of it, what happens next</div>
+              </div>
+            </div>
+
+            <div className={`acc-fld${fieldErrors.objective ? ' vis-invalid' : ''}`} data-field="objective">
+              <label>
+                Objective <span className="dm-req">*</span>
+              </label>
+              <ChipGroup
+                options={OBJECTIVE_OPTIONS}
+                value={formObjective}
+                columns={2}
+                onChange={(val) => {
+                  setFormObjective(val);
+                  clearFieldError('objective');
+                }}
+              />
+              {fieldErrors.objective && <div className="vis-ferr">{fieldErrors.objective}</div>}
+            </div>
+
+            <div className={`acc-fld${fieldErrors.outcome ? ' vis-invalid' : ''}`} data-field="outcome">
+              <label>
+                Outcome <span className="dm-req">*</span>
+              </label>
+              <ChipGroup
+                options={OUTCOME_OPTIONS}
+                value={formOutcome}
+                onChange={(val) => {
+                  setFormOutcome(val);
+                  clearFieldError('outcome');
+                }}
+              />
+              {fieldErrors.outcome && <div className="vis-ferr">{fieldErrors.outcome}</div>}
+            </div>
+
+            {formOutcome && (
+              <div className={`acc-fld${fieldErrors.action ? ' vis-invalid' : ''}`} data-field="action">
+                <label>
+                  Next Action <span className="dm-req">*</span>
+                </label>
+                <ChipGroup
+                  options={ACTION_OPTIONS}
+                  value={formAction}
+                  allowClear
+                  onChange={(val) => {
+                    setFormAction(val);
+                    clearFieldError('action');
+                  }}
+                />
+                {fieldErrors.action && <div className="vis-ferr">{fieldErrors.action}</div>}
+                {needsFollowThrough(formAction) && (
+                  <div className="vis-followup">
+                    <div className="vis-followup-title">
+                      <Icon className="fa-solid fa-calendar-days" /> Follow-through
+                    </div>
+                    <div className="vis-grid2">
+                      <div className="acc-fld">
+                        <label>Due Date</label>
+                        <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
+                      </div>
+                      <div className="acc-fld">
+                        <label>Owner</label>
+                        <select value={formActionOwnerId} onChange={(e) => setFormActionOwnerId(e.target.value)}>
+                          <option value="">— Select —</option>
+                          {/* Keep a saved owner selectable even if they're outside the current region roster. */}
+                          {formActionOwnerId && !regionAgentOptions.some((a) => a.id === formActionOwnerId) && (
+                            <option value={formActionOwnerId}>{editOriginal?.actionOwner || '(agent)'}</option>
+                          )}
+                          {regionAgentOptions.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="vis-sec">
+            <div className="vis-sec-head">
+              <span className="vis-sec-num">3</span>
+              <div>
+                <div className="vis-sec-title">Contact &amp; notes</div>
+                <div className="vis-sec-sub">Who you dealt with and what was agreed</div>
+              </div>
+            </div>
+
+            <div className={`acc-fld${fieldErrors.stakeholder ? ' vis-invalid' : ''}`} data-field="stakeholder">
+              <label>
+                Stakeholder Dealt With <span className="dm-req">*</span>
+              </label>
+              <select
+                value={formStakeholderId}
+                disabled={!formAccountId}
+                onChange={(e) => {
+                  setFormStakeholderId(e.target.value);
+                  clearFieldError('stakeholder');
+                }}
+              >
+                <option value="">{formAccountId ? '— Select —' : 'Pick a company first'}</option>
+                {formStakeholderId && !accountStakeholders.some((s) => s.id === formStakeholderId) && (
+                  <option value={formStakeholderId}>{editOriginal?.stakeholder || '(contact)'}</option>
+                )}
+                {accountStakeholders.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.roleLabel ? `${s.name} — ${s.roleLabel}` : s.name}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.stakeholder ? (
+                <div className="vis-ferr">{fieldErrors.stakeholder}</div>
+              ) : (
+                formAccountId &&
+                accountStakeholders.length === 0 && (
+                  <div className="acc-hint">No client contacts on this account yet — add them from the Accounts page.</div>
+                )
               )}
             </div>
-          )}
 
-          <div className="acc-fld">
-            <label>Comments</label>
-            <textarea
-              placeholder="What was discussed / agreed / next steps…"
-              value={formNotes}
-              onChange={(e) => setFormNotes(e.target.value)}
-            />
-          </div>
-
-          <div className="acc-fld">
-            <label>
-              Stakeholder Dealt With <span className="dm-req">*</span>
-            </label>
-            <select value={formStakeholderId} disabled={!formAccountId} onChange={(e) => setFormStakeholderId(e.target.value)}>
-              <option value="">{formAccountId ? '— Select —' : 'Pick a company first'}</option>
-              {formStakeholderId && !accountStakeholders.some((s) => s.id === formStakeholderId) && (
-                <option value={formStakeholderId}>{editOriginal?.stakeholder || '(contact)'}</option>
-              )}
-              {accountStakeholders.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.roleLabel ? `${s.name} — ${s.roleLabel}` : s.name}
-                </option>
-              ))}
-            </select>
-            {formAccountId && accountStakeholders.length === 0 && (
-              <div className="acc-hint">No client contacts on this account yet — add them from the Accounts page.</div>
-            )}
-          </div>
+            <div className="acc-fld">
+              <label>Comments</label>
+              <textarea
+                placeholder="What was discussed / agreed / next steps…"
+                value={formNotes}
+                onChange={(e) => setFormNotes(e.target.value)}
+              />
+            </div>
+          </section>
         </div>
-        <div className="acc-dfoot">
+        <div className="acc-dfoot vis-dfoot">
+          <span className="vis-req-note">
+            <span className="dm-req">*</span> Required
+          </span>
           <button className="acc-btn acc-btn-ghost" onClick={closeDrawer}>
             Cancel
           </button>
@@ -1466,7 +1696,9 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                 <Icon className="fa-solid fa-spinner fa-spin" /> Saving…
               </>
             ) : (
-              'Save Activity'
+              <>
+                <Icon className="fa-solid fa-floppy-disk" /> Save Activity
+              </>
             )}
           </button>
         </div>

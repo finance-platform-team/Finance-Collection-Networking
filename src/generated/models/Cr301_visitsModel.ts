@@ -57,7 +57,8 @@ export const Cr301_visitscr301_visittype = {
   989230001: 'Non_PhysicalVisit',
   989230002: 'CheckVisit',
   983080003: 'Meeting',
-  983080004: '_123Tour'
+  983080004: '_123Tour',
+  124700001: 'Call'
 } as const;
 export type Cr301_visitscr301_visittype = keyof typeof Cr301_visitscr301_visittype;
 export const Cr301_visitsms_accountneedidentified = {
@@ -93,9 +94,60 @@ export const Cr301_visitsms_accounttype = {
   124700010: 'Credit',
   124700011: 'CashAccount',
   124700012: 'Other',
-  124700013: 'KSA_DistrictBD'
+  124700013: 'KSA_DistrictBD',
+  983080003: 'Industry',
+  983080004: 'Managerial'
 } as const;
 export type Cr301_visitsms_accounttype = keyof typeof Cr301_visitsms_accounttype;
+export const Cr301_visitsms_activitycategory = {
+  124700000: 'Opportunity',
+  124700001: 'Deficit',
+  124700002: 'Issue'
+} as const;
+export type Cr301_visitsms_activitycategory = keyof typeof Cr301_visitsms_activitycategory;
+export const Cr301_visitsms_activityintent = {
+  124700000: 'Transactional',
+  124700001: 'Non_transactional'
+} as const;
+export type Cr301_visitsms_activityintent = keyof typeof Cr301_visitsms_activityintent;
+export const Cr301_visitsms_activityobjective = {
+  124700000: '_1',
+  124700001: '_2'
+} as const;
+export type Cr301_visitsms_activityobjective = keyof typeof Cr301_visitsms_activityobjective;
+export const Cr301_visitsms_activityreason = {
+  124700000: 'RenewExistingContracts_Opportunity_max2_mo',
+  124700001: 'ExpandServiceswithinExistingAccounts_Opportunity_max2_mo',
+  124700002: 'StrengthenRelationshipwithKeyStakeholders_Opportunity_max2_mo',
+  124700003: 'PromotePhysicianReferralPathway_Opportunity_max1_mo',
+  124700004: 'IncreaseSpecialtyReferrals_Opportunity_max1_mo',
+  124700005: 'NewContractDeal_Opportunity_max1_mo',
+  124700006: 'ContractActivation_Opportunity_max1_mo',
+  124700007: 'FollowUpActivityOpportunitieswithNewAccounts_Opportunity_max2_mo',
+  124700008: 'IdentifyNewOnsiteClinicOpportunities_Opportunity_max1_mo',
+  124700009: 'ActivitiesRefusal_Deficit_max1_mo',
+  124700010: 'ImproveActivity_to_ReferralConversion_Deficit_max1_mo',
+  124700011: 'ServiceGapIdentification_Deficit_max1_mo',
+  124700012: 'ResolvePatientComplaints_Issue_max2_mo',
+  124700013: 'ReviewEscalatedCases_Issue_max1_mo',
+  124700014: 'Complaint_EscalationManagement_Issue_max1_mo',
+  124700015: 'CoordinateAccountOperationalRequirements_Issue_max1_mo',
+  124700016: 'DiscussBillingProcess_Issue_max1_mo',
+  124700017: 'Strategic_investorengagement_Opportunity_max2_mo'
+} as const;
+export type Cr301_visitsms_activityreason = keyof typeof Cr301_visitsms_activityreason;
+export const Cr301_visitsms_activitysource = {
+  124700000: 'Self_planned',
+  124700001: 'Salesrequest',
+  124700002: 'HRdeficitalert',
+  124700003: 'Escalation',
+  124700004: 'Managerialactionplan',
+  124700005: 'Communicationplan',
+  124700006: 'Campaign',
+  124700007: 'Conference_committee',
+  124700008: 'CEO_directed'
+} as const;
+export type Cr301_visitsms_activitysource = keyof typeof Cr301_visitsms_activitysource;
 export const Cr301_visitsms_approvalstatus = {
   999740000: 'Approved',
   100000001: 'NeedModifications',
@@ -179,6 +231,15 @@ export const Cr301_visitsms_segment = {
   124700001: 'Other'
 } as const;
 export type Cr301_visitsms_segment = keyof typeof Cr301_visitsms_segment;
+export const Cr301_visitsms_strategyactivity = {
+  124700000: 'FY26Referralgrowth_Medicalnetwork',
+  124700001: 'FY26Contractedlives_Corporateaccounts',
+  124700002: 'FY26Brandreach_Communitypartners',
+  124700003: 'FY26Onsiteclinicexpansion',
+  124700004: 'FY26Capitalaccess_Investmentinstitutions',
+  124700005: 'FY26Recoveryofdeficitaccounts'
+} as const;
+export type Cr301_visitsms_strategyactivity = keyof typeof Cr301_visitsms_strategyactivity;
 export const Cr301_visitsms_urgency = {
   100000000: 'Low',
   100000001: 'Normal',
@@ -212,6 +273,9 @@ export interface Cr301_visitsBase {
   "cfm_NextActionOwner@odata.bind"?: string;
   cfm_objective?: Cr301_visitscfm_objective;
   cfm_outcome?: Cr301_visitscfm_outcome;
+  cfm_reviewed?: boolean;
+  "cfm_reviewedby@odata.bind"?: string;
+  cfm_reviewedon?: string;
   cfm_revisitdate?: string;
   "cfm_Stakeholderdealtwith@odata.bind"?: string;
   cfm_tagename?: Cr301_visitscfm_tagename;
@@ -244,7 +308,15 @@ export interface Cr301_visitsBase {
   importsequencenumber?: number;
   ms_accountneedidentified?: Cr301_visitsms_accountneedidentified;
   ms_accounttype?: Cr301_visitsms_accounttype;
+  ms_activitycategory?: Cr301_visitsms_activitycategory;
+  ms_activityintent?: Cr301_visitsms_activityintent;
+  ms_activityobjective?: Cr301_visitsms_activityobjective;
+  ms_activityoutcomecomment?: string;
+  ms_activityreason?: Cr301_visitsms_activityreason;
+  ms_activitysource?: Cr301_visitsms_activitysource;
   ms_approvalstatus?: Cr301_visitsms_approvalstatus;
+  "ms_ApproverorRejecterBy@odata.bind"?: string;
+  ms_approverorrejecterdate?: string;
   "ms_Branchname@odata.bind"?: string;
   ms_closeoutlatitude?: number;
   ms_closeoutlocationstatus?: Cr301_visitsms_closeoutlocationstatus;
@@ -267,6 +339,7 @@ export interface Cr301_visitsBase {
   ms_requestedmanagementrole?: Cr301_visitsms_requestedmanagementrole;
   ms_segment?: Cr301_visitsms_segment;
   "ms_Specialty@odata.bind"?: string;
+  ms_strategyactivity?: Cr301_visitsms_strategyactivity;
   "ms_TitleofEMP@odata.bind"?: string;
   ms_urgency?: Cr301_visitsms_urgency;
   ms_whichsegment?: Cr301_visitsms_whichsegment;
@@ -286,6 +359,9 @@ export interface Cr301_visits extends Cr301_visitsBase {
   cfm_nextactionownername?: string;
   cfm_objectivename?: string;
   cfm_outcomename?: string;
+  cfm_reviewedbyname?: string;
+  cfm_reviewedbyyominame?: string;
+  cfm_reviewedname?: string;
   cfm_stakeholderdealtwithname?: string;
   cfm_tagenamename?: string;
   cr18c_checkonagentname?: string;
@@ -316,7 +392,14 @@ export interface Cr301_visits extends Cr301_visitsBase {
   modifiedonbehalfbyyominame: string;
   ms_accountneedidentifiedname?: string;
   ms_accounttypename?: string;
+  ms_activitycategoryname?: string;
+  ms_activityintentname?: string;
+  ms_activityobjectivename?: string;
+  ms_activityreasonname?: string;
+  ms_activitysourcename?: string;
   ms_approvalstatusname?: string;
+  ms_approverorrejecterbyname?: string;
+  ms_approverorrejecterbyyominame?: string;
   ms_branchnamename?: string;
   ms_closeoutlocationstatusname?: string;
   ms_engagementtypename?: string;
@@ -333,6 +416,7 @@ export interface Cr301_visits extends Cr301_visitsBase {
   ms_requestedmanagementrolename?: string;
   ms_segmentname?: string;
   ms_specialtyname?: string;
+  ms_strategyactivityname?: string;
   ms_titleofempname?: string;
   ms_urgencyname?: string;
   ms_whichsegmentname?: string;
@@ -346,6 +430,8 @@ export interface Cr301_visits extends Cr301_visitsBase {
   _cfm_agent2_value?: string;
   cfm_nextactionowner?: object;
   _cfm_nextactionowner_value?: string;
+  cfm_reviewedby?: object;
+  _cfm_reviewedby_value?: string;
   cfm_stakeholderdealtwith?: object;
   _cfm_stakeholderdealtwith_value?: string;
   cr18c_checkonagent?: object;
@@ -366,6 +452,8 @@ export interface Cr301_visits extends Cr301_visitsBase {
   _modifiedby_value?: string;
   modifiedonbehalfby?: object;
   _modifiedonbehalfby_value?: string;
+  ms_approverorrejecterby?: object;
+  _ms_approverorrejecterby_value?: string;
   ms_branchname?: object;
   _ms_branchname_value?: string;
   ms_kpibreakdown?: object;
