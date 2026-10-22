@@ -143,6 +143,9 @@ export interface AgentRef {
   /** From cr301_agents.cr18c_area — KSA = the KSA choice, everything else
    *  (including unset) is Egypt, same convention as Agents.tsx / VisitPlan.tsx. */
   region: 'EG' | 'KSA';
+  /** cfm_ismanager — managers log activities too and are reviewed by their
+   *  peer managers in the same region. */
+  isManager: boolean;
 }
 
 // ---- helpers ----

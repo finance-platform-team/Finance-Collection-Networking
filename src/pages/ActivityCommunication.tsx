@@ -35,6 +35,20 @@ import {
   type ObjectiveMix,
   type PlanRow,
 } from '../lib/activityComm';
+import {
+  activityGroupKey,
+  computeActions,
+  groupMessages,
+  isOwnActivity as isOwnActivityOf,
+  myIdsOf,
+  planGroupKey,
+  roleOn,
+  scopeMonth,
+  threadKeyOf,
+  unreadFor,
+  type ActionItem,
+} from '../lib/actionItems';
+import type { MonthBadge } from '../lib/useActionBadges';
 import type { PageKey } from '../components/Layout';
 import type { Region } from '../lib/useRegion';
 import './ActivityCommunication.css';
@@ -45,10 +59,15 @@ type Tab = 'plan' | 'feedback';
 interface ActivityCommunicationPageProps {
   region: Region | null;
   onNavigate?: (page: PageKey) => void;
+  /** App-wide "waiting on you" counts (this month and next) — used to point at
+   *  the other month when it has items and the one on screen doesn't. */
+  monthBadges?: MonthBadge[];
+  /** Reports this page's live count for the month on screen to the sidebar badge. */
+  onActionCount?: (year: number, month: number, count: number) => void;
 }
 
 
-export default function ActivityCommunicationPage({ region, onNavigate }: ActivityCommunicationPageProps) {
+export default function ActivityCommunicationPage({ region, onNavigate, monthBadges, onActionCount }: ActivityCommunicationPageProps) {
   const ctx = useCurrentUser();
   const [devRole, setDevRole] = useState<UserRole | null>(null);
   const [ym, setYm] = useState(() => ({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 }));
@@ -76,30 +95,11 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
   const loading = !current;
 
   const actor: Actor | null = user ? { systemUserId: user.systemUserId, employeeId: user.employeeId, agentId: user.agentIds[0] || '' } : null;
-  const myIds = useMemo(() => [user?.systemUserId, user?.employeeId, ...(user?.agentIds || [])].filter((x): x is string => !!x), [user]);
+  const myIds = useMemo(() => myIdsOf(user), [user]);
 
-  const isOwnPlan = useCallback((p: PlanRow) => !!user && !!p.employeeId && user.myEmployeeIds.has(p.employeeId), [user]);
-  const isOwnActivity = useCallback(
-    (a: ActivityRow) => !!user && (a.agentIds.some((id) => user.agentIds.includes(id)) || a.employeeIds.some((id) => user.myEmployeeIds.has(id))),
-    [user]
-  );
-  const roleFor = useCallback(
-    (t: ThreadTarget): UserRole => {
-      if (devRole) return devRole;
-      if (!user) return 'agent';
-      const own = t.kind === 'plan' ? isOwnPlan(t.row) : isOwnActivity(t.row);
-      if (own && user.isAgent) return 'agent';
-      return user.role;
-    },
-    [devRole, user, isOwnPlan, isOwnActivity]
-  );
+  const isOwnActivity = useCallback((a: ActivityRow) => isOwnActivityOf(user, a), [user]);
+  const roleFor = useCallback((t: ThreadTarget): UserRole => devRole ?? roleOn(user, t), [devRole, user]);
   const senderRoleOf = (r: UserRole) => (r === 'agent' ? ROLE_AGENT : ROLE_MANAGER);
-  /** Sent by the signed-in user — by sender id when the lookup is set, else by
-   *  the role they hold on that thread. */
-  const isFromMe = useCallback(
-    (m: Message, threadRole: UserRole) => (m.senderId ? myIds.some((id) => id.toLowerCase() === m.senderId.toLowerCase()) : m.senderRole === senderRoleOf(threadRole)),
-    [myIds]
-  );
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -123,37 +123,10 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
     };
   }, [ym, ctx.loading, ctx.error, ctx.agents, ctx.employeeNames]);
 
-  // ---- scope: an agent sees only their own rows, a manager their team. The
-  // dev-only role toggle doesn't narrow scope, so either side can be tested.
-  const visible = useMemo(() => {
-    if (!data || !user) return { plans: [] as PlanRow[], activities: [] as ActivityRow[] };
-    let allowEmployee: (id: string) => boolean = () => true;
-    let allowActivity: (a: ActivityRow) => boolean = () => true;
-    if (!devRole) {
-      if (user.role === 'agent') {
-        const mine = new Set(user.agentIds);
-        const myEmployees = user.visibleEmployeeIds || new Set<string>();
-        allowEmployee = (id) => !!id && myEmployees.has(id);
-        allowActivity = (a) => a.agentIds.some((id) => mine.has(id)) || a.employeeIds.some((id) => myEmployees.has(id));
-      } else if (user.visibleEmployeeIds) {
-        const team = user.visibleEmployeeIds;
-        allowEmployee = (id) => team.has(id);
-        allowActivity = (a) => a.employeeIds.some((id) => team.has(id));
-      }
-    }
-    // App-wide Region (sidebar): a row's region is its agent's cr18c_area —
-    // by employee for plan weeks, by Task Owner 1 for activities. No region
-    // chosen = everything.
-    const regionByEmployee = new Map(ctx.agents.filter((a) => a.employeeId).map((a) => [a.employeeId, a.region]));
-    const regionByAgent = new Map(ctx.agents.map((a) => [a.id, a.region]));
-    const inRegion = (r: 'EG' | 'KSA' | undefined) => !region || (r || 'EG') === region;
-    return {
-      plans: data.plans.filter((p) => allowEmployee(p.employeeId) && inRegion(regionByEmployee.get(p.employeeId))),
-      activities: data.activities.filter(
-        (a) => allowActivity(a) && inRegion(regionByAgent.get(a.agentIds[0] || '') ?? regionByEmployee.get(a.employeeIds[0] || ''))
-      ),
-    };
-  }, [data, user, devRole, region, ctx.agents]);
+  // ---- scope: an agent sees only their own rows, a manager their team, then
+  // the app-wide Region. The dev-only role toggle doesn't narrow scope, so
+  // either side can be tested.
+  const visible = useMemo(() => scopeMonth(data, user, ctx.agents, region, !!devRole), [data, user, devRole, region, ctx.agents]);
 
   const agentOptions = useMemo(() => {
     const names = new Map<string, string>();
@@ -183,23 +156,23 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
   const plans = scoped.plans;
   const activities = scoped.activities;
 
-  const messagesByThread = useMemo(() => {
-    const map = new Map<string, Message[]>();
-    (data?.messages || []).forEach((m) => {
-      const key = m.threadType === THREAD_PLANNING ? `plan:${m.planWeekId}` : `activity:${m.activityId}`;
-      const list = map.get(key);
-      if (list) list.push(m);
-      else map.set(key, [m]);
-    });
-    return map;
-  }, [data?.messages]);
+  const messagesByThread = useMemo(() => groupMessages(data?.messages || []), [data?.messages]);
   const unreadIn = useCallback(
-    (t: ThreadTarget) => {
-      const r = roleFor(t);
-      return (messagesByThread.get(`${t.kind}:${t.row.id}`) || []).filter((m) => !m.isRead && !m.pending && m.type !== MSG_SYSTEM_EVENT && !isFromMe(m, r));
-    },
-    [messagesByThread, roleFor, isFromMe]
+    (t: ThreadTarget) => unreadFor(messagesByThread.get(threadKeyOf(t)) || [], myIds, roleFor(t)),
+    [messagesByThread, myIds, roleFor]
   );
+
+  // "Waiting on you": the whole scope feeds the sidebar badge; the agent
+  // filter (manager) narrows what the strip, tabs and groups show.
+  const allActions = useMemo(() => computeActions(visible, messagesByThread, myIds, roleFor), [visible, messagesByThread, myIds, roleFor]);
+  const actions = useMemo(
+    () => (activeAgentFilter ? computeActions(scoped, messagesByThread, myIds, roleFor) : allActions),
+    [activeAgentFilter, scoped, messagesByThread, myIds, roleFor, allActions]
+  );
+  useEffect(() => {
+    // Only real data in the user's own role should move the sidebar badge.
+    if (!loading && data && !devRole) onActionCount?.(ym.year, ym.month, allActions.badge);
+  }, [loading, data, devRole, ym, allActions.badge, onActionCount]);
   const unreadPlan = useCallback((p: PlanRow) => unreadIn({ kind: 'plan', row: p }).length, [unreadIn]);
   const unreadActivity = useCallback((a: ActivityRow) => unreadIn({ kind: 'activity', row: a }).length, [unreadIn]);
 
@@ -207,7 +180,7 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
   const planGroups = useMemo(() => {
     const map = new Map<string, { key: string; name: string; weeks: PlanRow[]; planned: number; pending: number; confirmed: number; change: number; unread: number }>();
     plans.forEach((p) => {
-      const key = p.employeeId || p.ownerName;
+      const key = planGroupKey(p);
       let g = map.get(key);
       if (!g) {
         g = { key, name: p.ownerName, weeks: [], planned: 0, pending: 0, confirmed: 0, change: 0, unread: 0 };
@@ -222,8 +195,8 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
     });
     const groups = Array.from(map.values());
     groups.forEach((g) => g.weeks.sort((a, b) => a.weekNumber - b.weekNumber));
-    return groups.sort((a, b) => a.name.localeCompare(b.name));
-  }, [plans, unreadPlan]);
+    return groups.sort((a, b) => Number(actions.groupKeys.has(b.key)) - Number(actions.groupKeys.has(a.key)) || a.name.localeCompare(b.name));
+  }, [plans, unreadPlan, actions.groupKeys]);
   // Activities grouped by their primary task owner (double visits list under
   // Task Owner 1 and show both names on the row), newest first within a group.
   const activityGroups = useMemo(() => {
@@ -231,7 +204,7 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
     const map = new Map<string, { key: string; name: string; rows: ActivityRow[]; reviewed: number; notReviewed: number; unread: number }>();
     activities.forEach((a) => {
       const primary = a.agentIds[0] || '';
-      const key = `act:${primary || a.agentName}`;
+      const key = activityGroupKey(a);
       let g = map.get(key);
       if (!g) {
         g = { key, name: (primary && nameByAgent.get(primary)) || a.agentName.split(' & ')[0] || '—', rows: [], reviewed: 0, notReviewed: 0, unread: 0 };
@@ -244,18 +217,20 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
     });
     const groups = Array.from(map.values());
     groups.forEach((g) => g.rows.sort((x, y) => y.date.localeCompare(x.date)));
-    return groups.sort((x, y) => x.name.localeCompare(y.name));
-  }, [activities, ctx.agents, unreadActivity]);
-  // Groups start collapsed; a key lands here once the user expands it.
-  const [expandedOwners, setExpandedOwners] = useState<Set<string>>(new Set());
-  function toggleOwner(key: string) {
-    setExpandedOwners((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    return groups.sort((x, y) => Number(actions.groupKeys.has(y.key)) - Number(actions.groupKeys.has(x.key)) || x.name.localeCompare(y.name));
+  }, [activities, ctx.agents, unreadActivity, actions.groupKeys]);
+  // Groups holding something that waits on you start open, the rest collapsed.
+  // Once the user toggles a group or works in it, that choice is pinned here —
+  // so a group doesn't snap shut the moment its last item is handled.
+  const [pinnedOwners, setPinnedOwners] = useState<Map<string, boolean>>(new Map());
+  const isOwnerOpen = (key: string) => pinnedOwners.get(key) ?? actions.groupKeys.has(key);
+  function pinOwner(key: string, open: boolean) {
+    setPinnedOwners((prev) => (prev.get(key) === open ? prev : new Map(prev).set(key, open)));
   }
+  function toggleOwner(key: string) {
+    pinOwner(key, !isOwnerOpen(key));
+  }
+  const groupKeyOf = (t: ThreadTarget) => (t.kind === 'plan' ? planGroupKey(t.row) : activityGroupKey(t.row));
 
   const planStats = useMemo(() => {
     const s = { planned: 0, owners: new Set<string>(), pending: 0, confirmed: 0, change: 0 };
@@ -303,6 +278,7 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
   /** Selects a row and marks the other side's messages in its thread as read. */
   function openThread(t: ThreadTarget) {
     setSelected({ kind: t.kind, id: t.row.id });
+    pinOwner(groupKeyOf(t), true);
     const unread = unreadIn(t).map((m) => m.id);
     if (!unread.length) return;
     const ids = new Set(unread);
@@ -311,6 +287,12 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
       patchMessages((list) => list.map((m) => (ids.has(m.id) ? { ...m, isRead: false } : m)));
       showToast(e instanceof Error ? e.message : 'Could not mark messages as read.');
     });
+  }
+
+  function openAction(item: ActionItem) {
+    const t = item.target;
+    setTab(t.kind === 'plan' ? 'plan' : 'feedback');
+    openThread(t);
   }
 
   /** Optimistically appends a message, then swaps in the saved one (or
@@ -430,7 +412,6 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
     }, 'manager');
   }
 
-  const planBadge = planStats.pending + planStats.change;
   const isDev = import.meta.env.DEV;
 
   return (
@@ -478,11 +459,11 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
         <div className="ac-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={tab === 'plan'} className={tab === 'plan' ? 'on' : ''} onClick={() => { setTab('plan'); setSelected(null); }}>
             <Icon className="fa-solid fa-bullseye" /> Objective planning
-            {planBadge > 0 && <span className="ac-tab-badge">{planBadge}</span>}
+            {actions.planCount > 0 && <span className="ac-tab-badge" title="Waiting on you">{actions.planCount}</span>}
           </button>
           <button type="button" role="tab" aria-selected={tab === 'feedback'} className={tab === 'feedback' ? 'on' : ''} onClick={() => { setTab('feedback'); setSelected(null); }}>
             <Icon className="fa-solid fa-circle-check" /> After-activity feedback
-            {feedbackStats.notReviewed > 0 && <span className="ac-tab-badge">{feedbackStats.notReviewed}</span>}
+            {actions.feedbackCount > 0 && <span className="ac-tab-badge" title="Waiting on you">{actions.feedbackCount}</span>}
           </button>
         </div>
       </div>
@@ -501,6 +482,23 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
           <Kpi tone="ok" icon="fa-circle-check" label="Reviewed" value={feedbackStats.reviewed} loading={loading} context={feedbackStats.logged ? `${Math.round((feedbackStats.reviewed / feedbackStats.logged) * 100)}% of activities` : '—'} />
           <Kpi tone="info" icon="fa-comment" label="Unread messages" value={feedbackStats.unread} loading={loading} context="in activity threads" />
         </div>
+      )}
+
+      {!loading && !ctx.loading && !ctx.error && !loadError && (
+        <ActionStrip
+          items={actions.items}
+          toReview={actions.toReview.length}
+          otherMonths={(monthBadges || []).filter((m) => m.count > 0 && !(m.year === ym.year && m.month === ym.month))}
+          onOpen={openAction}
+          onReview={() => {
+            setTab('feedback');
+            setSelected(null);
+          }}
+          onMonth={(year, month) => {
+            setYm({ year, month });
+            setSelected(null);
+          }}
+        />
       )}
 
       {ctx.error || loadError ? (
@@ -544,7 +542,7 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
                       </tr>
                     </thead>
                     {planGroups.map((g) => {
-                      const isCollapsed = !expandedOwners.has(g.key);
+                      const isCollapsed = !isOwnerOpen(g.key);
                       return (
                         <tbody key={g.key} className="ac-group">
                           <tr className="ac-group-row" onClick={() => toggleOwner(g.key)} tabIndex={0} aria-expanded={!isCollapsed} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOwner(g.key); } }}>
@@ -560,7 +558,7 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
                                 </span>
                                 <span className="ac-group-stats">
                                   {g.pending > 0 && <span className="ac-pill ac-pill-warn">{g.pending} awaiting</span>}
-                                  {g.change > 0 && <span className="ac-pill ac-pill-info">{g.change} change</span>}
+                                  {g.change > 0 && <span className="ac-pill ac-pill-info">{g.change} change requested</span>}
                                   {g.confirmed > 0 && <span className="ac-pill ac-pill-ok">{g.confirmed} confirmed</span>}
                                   {g.unread > 0 && <span className="ac-unread-inline">{g.unread} unread</span>}
                                 </span>
@@ -615,7 +613,7 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
                     </tr>
                   </thead>
                   {activityGroups.map((g) => {
-                    const isCollapsed = !expandedOwners.has(g.key);
+                    const isCollapsed = !isOwnerOpen(g.key);
                     return (
                       <tbody key={g.key} className="ac-group">
                         <tr className="ac-group-row" onClick={() => toggleOwner(g.key)} tabIndex={0} aria-expanded={!isCollapsed} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOwner(g.key); } }}>
@@ -662,7 +660,10 @@ export default function ActivityCommunicationPage({ region, onNavigate }: Activi
                                     checked={a.reviewed}
                                     disabled={roleFor({ kind: 'activity', row: a }) !== 'manager'}
                                     title={roleFor({ kind: 'activity', row: a }) === 'manager' ? 'Reviewed by manager' : isOwnActivity(a) ? "You can't review your own activity" : 'Only the manager can mark as reviewed'}
-                                    onChange={(e) => void onToggleReviewed(a, e.target.checked)}
+                                    onChange={(e) => {
+                                      pinOwner(activityGroupKey(a), true);
+                                      void onToggleReviewed(a, e.target.checked);
+                                    }}
                                   />
                                 </td>
                                 <td>
@@ -729,5 +730,84 @@ function ThreadButton({ count, unread }: { count: number; unread: number }) {
       <span className="ac-mono">{count}</span>
       {unread > 0 && <span className="ac-unread">{unread}</span>}
     </span>
+  );
+}
+
+const STRIP_LIMIT = 4;
+
+/**
+ * "Waiting on you" — one quiet card above the table listing only what the
+ * signed-in user has to act on, each with the other party's name, one click
+ * from its thread. Renders nothing when there's nothing to do.
+ */
+function ActionStrip({
+  items,
+  toReview,
+  otherMonths,
+  onOpen,
+  onReview,
+  onMonth,
+}: {
+  items: ActionItem[];
+  toReview: number;
+  otherMonths: MonthBadge[];
+  onOpen: (item: ActionItem) => void;
+  onReview: () => void;
+  onMonth: (year: number, month: number) => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  if (!items.length && !toReview && !otherMonths.length) return null;
+  const shown = showAll ? items : items.slice(0, STRIP_LIMIT);
+
+  return (
+    <div className="tbl-shell ac-actions">
+      <div className="tbl-hdr">
+        <h3 className="ac-actions-title">
+          <Icon className="fa-solid fa-list-check" /> Waiting on you
+        </h3>
+        {items.length > 0 && <span className="dm-count">{items.length} item{items.length === 1 ? '' : 's'}</span>}
+      </div>
+      {shown.map((it) => {
+        const t = it.target;
+        const where = t.kind === 'plan' ? `Week ${t.row.weekNumber} · ${fmtDateRange(t.row.from, t.row.to)}` : `${t.row.accountName} · ${fmtShortDate(t.row.date)}`;
+        const [text, cta] =
+          it.type === 'change-request'
+            ? [<><b>{it.who}</b> asked to change the objectives</>, 'Review']
+            : it.type === 'confirm'
+              ? [<>Confirm your objectives</>, 'Confirm']
+              : [<><b>{it.who}</b> sent {it.unread} new message{it.unread === 1 ? '' : 's'}</>, 'Open'];
+        return (
+          <button key={it.key} type="button" className={`ac-action ac-action-${it.type}`} onClick={() => onOpen(it)}>
+            <span className="ac-avatar ac-avatar-sm">{initials(it.who)}</span>
+            <span className="ac-action-text">
+              <span>{text}</span>
+              <small>{where}</small>
+            </span>
+            <span className="ac-action-cta">
+              {cta} <Icon className="fa-solid fa-chevron-right" />
+            </span>
+          </button>
+        );
+      })}
+      {(items.length > STRIP_LIMIT || toReview > 0 || otherMonths.length > 0) && (
+        <div className="ac-action-foot">
+          {items.length > STRIP_LIMIT && (
+            <button type="button" className="ac-link" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? 'Show less' : `Show ${items.length - STRIP_LIMIT} more`}
+            </button>
+          )}
+          {toReview > 0 && (
+            <button type="button" className="ac-link" onClick={onReview}>
+              {toReview} activit{toReview === 1 ? 'y' : 'ies'} to review
+            </button>
+          )}
+          {otherMonths.map((m) => (
+            <button key={`${m.year}-${m.month}`} type="button" className="ac-link" onClick={() => onMonth(m.year, m.month)}>
+              {m.count} waiting in {MONTHS[m.month - 1]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

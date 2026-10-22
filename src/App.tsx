@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Layout, { type PageKey } from './components/Layout';
 import AndalusiaLoader from './components/AndalusiaLoader';
 import { useRegion } from './lib/useRegion';
+import { useActionBadges } from './lib/useActionBadges';
 import CollectionPlanPage from './pages/CollectionPlan';
 import WeeklyTargetsPage from './pages/WeeklyTargets';
 import DailyCollectionPage from './pages/DailyCollection';
@@ -19,6 +20,7 @@ function App() {
   const [page, setPage] = useState<PageKey>('visit-plan');
   const [region, setRegion] = useRegion();
   const [booting, setBooting] = useState(true);
+  const actionBadges = useActionBadges(region, page);
 
   useEffect(() => {
     const id = setTimeout(() => setBooting(false), 600);
@@ -28,7 +30,13 @@ function App() {
   if (booting) return <AndalusiaLoader />;
 
   return (
-    <Layout active={page} onNavigate={setPage} region={region} onRegionChange={setRegion}>
+    <Layout
+      active={page}
+      onNavigate={setPage}
+      region={region}
+      onRegionChange={setRegion}
+      badges={{ 'activity-communication': actionBadges.total }}
+    >
       {page === 'collection-plan' ? (
         <CollectionPlanPage region={region} />
       ) : page === 'weekly-targets' ? (
@@ -50,7 +58,12 @@ function App() {
       ) : page === 'visit-audit' ? (
         <VisitAuditPage region={region} />
       ) : page === 'activity-communication' ? (
-        <ActivityCommunicationPage region={region} onNavigate={setPage} />
+        <ActivityCommunicationPage
+          region={region}
+          onNavigate={setPage}
+          monthBadges={actionBadges.months}
+          onActionCount={actionBadges.report}
+        />
       ) : (
         <VisitsPage region={region} />
       )}

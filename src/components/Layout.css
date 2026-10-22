@@ -39,6 +39,12 @@
 .acc-sb-group-items a.active{background:var(--shell-active-bg);color:var(--shell-text-strong);
   font-weight:600;border-left-color:var(--shell-accent)}
 .acc-sb-group-items a.active i{color:var(--shell-accent)}
+/* "Waiting on you" count — the brand accent, not alarm red, so it reads as a
+   calm nudge; it only renders when the count is above zero. */
+.acc-sb-group-items a{position:relative}
+.acc-sb-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;
+  background:var(--shell-accent);color:#1a120b;font-size:11px;font-weight:700;line-height:20px;text-align:center;
+  font-variant-numeric:tabular-nums}
 
 /* Sidebar footer — region switcher + global Light/Dark theme switch, always pinned below the nav list */
 .acc-sb-foot{padding:12px 10px;border-top:1px solid var(--shell-line)}
@@ -66,6 +72,9 @@
   .acc-sidebar.collapsed .acc-sb-group-hdr{display:none}
   .acc-sidebar.collapsed .acc-sb-group-items a{justify-content:center;padding:12px 0}
   .acc-sidebar.collapsed .acc-sb-label{display:none}
+  /* Icon rail: no room for a number — a small dot on the icon instead. */
+  .acc-sidebar.collapsed .acc-sb-badge{position:absolute;top:8px;right:18px;min-width:0;width:8px;height:8px;padding:0;
+    font-size:0;box-shadow:0 0 0 2px var(--shell-bg)}
   .acc-sidebar.collapsed .theme-switch{flex-direction:column}
   .acc-sidebar.collapsed .theme-btn + .theme-btn{border-left:none;border-top:1px solid var(--shell-line)}
   .acc-sidebar.collapsed .theme-btn-label{display:none}

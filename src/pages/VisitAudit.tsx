@@ -164,6 +164,14 @@ interface ObjectiveSummary {
 }
 const NO_OUTCOME = -1;
 
+/** One collection task owner, so owners with a 0 target / no activities still make the export. */
+interface RosterAgent {
+  agentId: string;
+  name: string;
+  region: 'EG' | 'KSA' | '';
+  employeeId: string;
+}
+
 interface OwnerSummary {
   name: string;
   total: number;
@@ -197,6 +205,9 @@ interface VisitAuditPageProps {
 export default function VisitAuditPage({ region }: VisitAuditPageProps) {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [objectiveTargets, setObjectiveTargets] = useState<ObjectiveTarget[]>([]);
+  const [roster, setRoster] = useState<RosterAgent[]>([]);
+  // employeeId|year|month|week -> weekly plan (cfm_plan)
+  const [weekPlans, setWeekPlans] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -461,6 +472,18 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
       auditRows.sort((a, b) => b.createdOn.localeCompare(a.createdOn));
       setRows(auditRows);
       setObjectiveTargets(targets);
+      setRoster(
+        agentRows.map((a) => {
+          const areaValue = a.cr18c_area == null ? null : Number(a.cr18c_area);
+          return {
+            agentId: a.cr301_agentid,
+            name: a.cr301_newcolumn || '(unknown owner)',
+            region: areaValue == null ? '' : areaValue === AREA_KSA ? 'KSA' : 'EG',
+            employeeId: employeeByKey.get(firstWords(a.cr301_newcolumn || '', 3))?.hr_employeeid || '',
+          };
+        })
+      );
+      setWeekPlans(new Map(Array.from(planMap.entries()).map(([k, v]) => [k, v.plan])));
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -605,7 +628,6 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
     });
     const objectiveOrder = (o: number | null) => (o == null ? 99 : OBJECTIVE_OPTIONS.findIndex((x) => x.value === o));
     return Array.from(groups.values())
-      .filter((g) => g.target > 0 || g.actual > 0)
       .sort(
         (a, b) =>
           a.ownerName.localeCompare(b.ownerName) ||
@@ -628,7 +650,6 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
    * Detail / Summary / By Week / By Month CSV exports.
    */
   async function exportAudit() {
-    if (!view.length) return;
     setExporting(true);
     try {
       const ExcelJS = await import('exceljs');
@@ -685,11 +706,35 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
         ws.autoFilter = { from: { row: 2, column: 2 }, to: { row: 2, column: columns.length + 1 } };
       };
 
+      // Every collection owner in scope (search/owner/region filters) x every
+      // week of the months in scope — so owners with a 0 target or no
+      // activities still get their rows (as zeros) instead of disappearing.
+      const q = query.trim().toLowerCase();
+      const scopedRoster = roster
+        .filter((a) => !q || a.name.toLowerCase().includes(q))
+        .filter((a) => !ownerFilter || a.name === ownerFilter)
+        .filter((a) => !region || (region === 'KSA' ? a.region === 'KSA' : a.region !== 'KSA'));
+      const scopedWeeks = (monthFilter ? [monthFilter] : monthOptions.map(([k]) => k)).flatMap((k) => {
+        const [y, m] = k.split('-').map(Number);
+        return [1, 2, 3, 4].map((week) => ({ year: y, month: m, week }));
+      });
+
       // ---- Summary: one row per owner per week ----
-      const weekGroups = new Map<string, { r: AuditRow; same: number; wrong: number; total: number; double: number; repeated: number }>();
+      type WeekGroup = { name: string; year: number; month: number; week: number; target: number | ''; same: number; wrong: number; total: number; double: number; repeated: number };
+      const weekGroups = new Map<string, WeekGroup>();
+      scopedRoster.forEach((a) =>
+        scopedWeeks.forEach(({ year, month, week }) => {
+          const plan = a.employeeId ? weekPlans.get(`${a.employeeId}|${year}|${month}|${week}`) : undefined;
+          weekGroups.set(`${a.agentId}|${year}|${month}|${week}`, {
+            name: a.name, year, month, week, target: plan ?? 0, same: 0, wrong: 0, total: 0, double: 0, repeated: 0,
+          });
+        })
+      );
       sorted.forEach((r) => {
         const k = ownerWeekKey(r);
-        const g = weekGroups.get(k) || { r, same: 0, wrong: 0, total: 0, double: 0, repeated: 0 };
+        const g = weekGroups.get(k) || {
+          name: r.ownerName, year: r.expectedYear, month: r.expectedMonth, week: r.expectedWeek, target: target(r), same: 0, wrong: 0, total: 0, double: 0, repeated: 0,
+        };
         g.total++;
         if (r.status === 'on-time' || r.status === 'late-same-week') g.same++;
         else g.wrong++;
@@ -710,7 +755,9 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
           { header: 'Double Activities', width: 12 },
           { header: 'Repeated Activities', width: 12 },
         ],
-        Array.from(weekGroups.values()).map((g) => [g.r.ownerName, monthLabel(g.r), weekLabel(g.r), target(g.r), g.same, g.wrong, g.total, g.double, g.repeated])
+        Array.from(weekGroups.values())
+          .sort((a, b) => a.name.localeCompare(b.name) || a.year - b.year || a.month - b.month || a.week - b.week)
+          .map((g) => [g.name, `${MONTHS[g.month]} ${g.year}`, `Week ${g.week}`, g.target, g.same, g.wrong, g.total, g.double, g.repeated])
       );
 
       // ---- Objectives: per owner + week + objective, target vs. actual + outcomes ----
@@ -727,13 +774,23 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
           { header: 'Achievement %', width: 12 },
           ...outcomeCols.map((o) => ({ header: outcomeLabel(o), width: 12 })),
         ],
-        objectiveSummaries.map((s) => {
+        [
+          ...objectiveSummaries,
+          // Owner-weeks with no objective target and no activities: one zero row.
+          ...scopedRoster.flatMap((a) =>
+            scopedWeeks
+              .filter(({ year, month, week }) => !objectiveSummaries.some((s) => s.ownerName === a.name && s.year === year && s.month === month && s.week === week))
+              .map(({ year, month, week }): ObjectiveSummary => ({ key: '', ownerName: a.name, year, month, week, objective: null, target: 0, actual: 0, outcomes: new Map() }))
+          ),
+        ]
+          .sort((a, b) => a.ownerName.localeCompare(b.ownerName) || a.year - b.year || a.month - b.month || a.week - b.week)
+          .map((s) => {
           const pct = pctOf(s.actual, s.target);
           return [
             s.ownerName,
             `${MONTHS[s.month]} ${s.year}`,
             `Week ${s.week}`,
-            objectiveLabel(s.objective),
+            s.key ? objectiveLabel(s.objective) : 'No target',
             s.target,
             s.actual,
             pct == null ? '' : Math.round(pct * 10) / 10,
@@ -860,7 +917,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
           <div className="acc-sub">Activity Date vs. Created On · Expected Week vs. Created Week · Plan vs. Actual · per task owner</div>
         </div>
         <div className="acc-actions">
-          <button className="acc-btn" onClick={exportAudit} disabled={exporting || loading || !view.length}>
+          <button className="acc-btn" onClick={exportAudit} disabled={exporting || loading}>
             <Icon className="fa-solid fa-download" /> {exporting ? 'Exporting…' : 'Export'}
           </button>
         </div>

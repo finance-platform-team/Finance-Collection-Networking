@@ -72,10 +72,12 @@ interface LayoutProps {
   onNavigate: (page: PageKey) => void;
   region: Region | null;
   onRegionChange: (region: Region) => void;
+  /** Per-page "waiting on you" counts, shown as a quiet pill on the nav link. */
+  badges?: Partial<Record<PageKey, number>>;
   children: ReactNode;
 }
 
-export default function Layout({ active, onNavigate, region, onRegionChange, children }: LayoutProps) {
+export default function Layout({ active, onNavigate, region, onRegionChange, badges, children }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useTheme();
@@ -149,12 +151,14 @@ export default function Layout({ active, onNavigate, region, onRegionChange, chi
                     own collapsed state, so it never strands hidden icons. */}
                 {(!isCollapsed || collapsed) && (
                   <ul className="acc-sb-group-items">
-                    {items.map((item) => (
+                    {items.map((item) => {
+                      const badge = badges?.[item.key] || 0;
+                      return (
                       <li key={item.key}>
                         <a
                           href="#"
                           className={item.key === active ? 'active' : ''}
-                          title={item.label}
+                          title={badge ? `${item.label} — ${badge} waiting on you` : item.label}
                           onClick={(e) => {
                             e.preventDefault();
                             navigate(item.key);
@@ -162,9 +166,11 @@ export default function Layout({ active, onNavigate, region, onRegionChange, chi
                         >
                           <Icon className={`fa-solid ${item.icon}`} />
                           <span className="acc-sb-label">{item.label}</span>
+                          {badge > 0 && <span className="acc-sb-badge">{badge > 99 ? '99+' : badge}</span>}
                         </a>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
               </div>
