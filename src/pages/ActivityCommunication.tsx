@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../components/Icon';
 import AgentPicker from '../components/AgentPicker';
 import MonthPicker from '../components/MonthPicker';
-import ThreadPanel, { OutcomePill, StatusPill, type ThreadTarget } from '../components/ThreadPanel';
+import ThreadPanel, { OutcomePills, StatusPill, type ThreadTarget } from '../components/ThreadPanel';
 import { useCurrentUser, type UserRole } from '../lib/useCurrentUser';
 import {
   MSG_CHANGE_RECOMMENDATION,
@@ -651,7 +651,7 @@ export default function ActivityCommunicationPage({ region, onNavigate, monthBad
                                 </td>
                                 <td>{a.objectiveLabel || <span className="ac-muted">—</span>}</td>
                                 <td>
-                                  <OutcomePill label={a.outcomeLabel} />
+                                  <OutcomePills labels={a.outcomeLabels} />
                                 </td>
                                 <td onClick={(e) => e.stopPropagation()}>
                                   <input

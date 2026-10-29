@@ -89,8 +89,7 @@
         },
         "kpiachievementbreakdowns": {
           "entitySetName": "stf_kpiachievmentbreakdowns",
-          "logicalName": "stf_kpiachievmentbreakdown",
-          "isHidden": false
+          "logicalName": "stf_kpiachievmentbreakdown"
         },
         "collectionplanweeks": {
           "entitySetName": "cfm_collectionplanweeks",

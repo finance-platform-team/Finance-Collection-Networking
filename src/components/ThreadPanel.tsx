@@ -76,6 +76,18 @@ export function OutcomePill({ label }: { label: string }) {
   return <span className={`ac-pill ac-pill-${tone}`}>{label}</span>;
 }
 
+/** One pill per outcome — cr18c_outcome is multi-select. */
+export function OutcomePills({ labels }: { labels: string[] }) {
+  if (!labels.length) return <OutcomePill label="" />;
+  return (
+    <span className="ac-pills">
+      {labels.map((l) => (
+        <OutcomePill key={l} label={l} />
+      ))}
+    </span>
+  );
+}
+
 export default function ThreadPanel(props: ThreadPanelProps) {
   const { target, messages, role, myIds, monthLabel } = props;
   const [draft, setDraft] = useState('');
@@ -134,7 +146,7 @@ export default function ThreadPanel(props: ThreadPanelProps) {
     chips = (
       <>
         <span className="ac-chip ac-chip-copper">After-activity feedback</span>
-        <OutcomePill label={r.outcomeLabel} />
+        <OutcomePills labels={r.outcomeLabels} />
         {r.reviewed ? <span className="ac-pill ac-pill-ok">Reviewed</span> : <span className="ac-pill ac-pill-warn">Not reviewed</span>}
       </>
     );
@@ -367,7 +379,7 @@ function FeedbackContext({ row, role, onToggle }: { row: ActivityRow; role: User
         </div>
         <div className="ac-obj">
           <span>Outcome</span>
-          <OutcomePill label={row.outcomeLabel} />
+          <OutcomePills labels={row.outcomeLabels} />
         </div>
       </div>
       <label className={`ac-confirm${isManager ? '' : ' locked'}${row.reviewed ? ' checked' : ''}`}>

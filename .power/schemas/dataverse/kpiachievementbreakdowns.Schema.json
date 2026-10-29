@@ -225,6 +225,100 @@
           "x-ms-schema-name": "OwningUser",
           "x-ms-read-only": true
         },
+        "pm_actualenteredby": {
+          "type": "string",
+          "title": "Actual entered by",
+          "x-ms-dataverse-attribute": "pm_actualenteredby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "pm_ActualEnteredBy"
+        },
+        "pm_actualenteredbyname": {
+          "type": "string",
+          "title": "pm_actualenteredbyname",
+          "x-ms-dataverse-attribute": "pm_actualenteredbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "pm_ActualEnteredByName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "pm_actualenteredbyyominame": {
+          "type": "string",
+          "title": "pm_actualenteredbyyominame",
+          "x-ms-dataverse-attribute": "pm_actualenteredbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "pm_ActualEnteredByYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "pm_actualenteredon": {
+          "type": "string",
+          "title": "Actual entered on",
+          "x-ms-dataverse-attribute": "pm_actualenteredon",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "pm_ActualEnteredOn"
+        },
+        "pm_appactual": {
+          "type": "string",
+          "title": "App actual",
+          "x-ms-dataverse-attribute": "pm_appactual",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "pm_AppActual"
+        },
+        "pm_enteredweeks": {
+          "type": "string",
+          "title": "Entered weeks",
+          "x-ms-dataverse-attribute": "pm_enteredweeks",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "pm_EnteredWeeks",
+          "maxLength": 20
+        },
+        "pm_function": {
+          "type": "string",
+          "title": "Function",
+          "x-ms-dataverse-attribute": "pm_function",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "pm_Function"
+        },
+        "pm_functionname": {
+          "type": "string",
+          "title": "pm_functionname",
+          "x-ms-dataverse-attribute": "pm_functionname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "pm_FunctionName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "pm_hrsource": {
+          "type": "string",
+          "title": "HR Source",
+          "x-ms-dataverse-attribute": "pm_hrsource",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "pm_HRSource",
+          "enum": [
+            "PMS",
+            "Compensation"
+          ],
+          "x-ms-enum-values": [
+            125570000,
+            125570001
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "d6b458cf-6aa4-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "HR Source",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "pm_hrsourcename": {
+          "type": "string",
+          "title": "pm_hrsourcename",
+          "x-ms-dataverse-attribute": "pm_hrsourcename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "pm_hrsourceName",
+          "x-ms-read-only": true
+        },
         "pm_servicecategory": {
           "type": "string",
           "title": "ServiceCategory",
@@ -240,6 +334,149 @@
           "x-ms-schema-name": "pm_ServiceCategoryName",
           "x-ms-read-only": true,
           "maxLength": 850
+        },
+        "pm_targetsource": {
+          "type": "string",
+          "title": "Target source",
+          "x-ms-dataverse-attribute": "pm_targetsource",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "pm_TargetSource",
+          "enum": [
+            "Forecast",
+            "Top Down Monthly",
+            "Breakdown",
+            "Bottom Up",
+            "Financial Modelar",
+            "BottomUp Breakdown",
+            "Top Down Yearly",
+            "Bottom Up Yearly",
+            "HR Planning",
+            "Conflict Resolution",
+            "Cascade",
+            "Yearly – month split",
+            "Same month last year",
+            "Re-forecast",
+            "Driver Alignment"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "eeeb00e1-4cc6-f111-aaaf-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Target source",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "pm_targetsourcename": {
+          "type": "string",
+          "title": "pm_targetsourcename",
+          "x-ms-dataverse-attribute": "pm_targetsourcename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "pm_targetsourceName",
+          "x-ms-read-only": true
+        },
+        "pm_targetstatus": {
+          "type": "string",
+          "title": "Target status",
+          "x-ms-dataverse-attribute": "pm_targetstatus",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "pm_TargetStatus",
+          "enum": [
+            "Draft",
+            "Approved"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "0c280ae7-4cc6-f111-aaaf-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Target status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "pm_targetstatusname": {
+          "type": "string",
+          "title": "pm_targetstatusname",
+          "x-ms-dataverse-attribute": "pm_targetstatusname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "pm_targetstatusName",
+          "x-ms-read-only": true
+        },
+        "pm_w1actual": {
+          "type": "string",
+          "title": "W1 actual",
+          "x-ms-dataverse-attribute": "pm_w1actual",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "pm_W1Actual"
+        },
+        "pm_w2actual": {
+          "type": "string",
+          "title": "W2 actual",
+          "x-ms-dataverse-attribute": "pm_w2actual",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "pm_W2Actual"
+        },
+        "pm_w3actual": {
+          "type": "string",
+          "title": "W3 actual",
+          "x-ms-dataverse-attribute": "pm_w3actual",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "pm_W3Actual"
+        },
+        "pm_w4actual": {
+          "type": "string",
+          "title": "W4 actual",
+          "x-ms-dataverse-attribute": "pm_w4actual",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "pm_W4Actual"
+        },
+        "pm_w5actual": {
+          "type": "string",
+          "title": "W5 actual",
+          "x-ms-dataverse-attribute": "pm_w5actual",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "pm_W5Actual"
+        },
+        "pm_w6actual": {
+          "type": "string",
+          "title": "W6 actual",
+          "x-ms-dataverse-attribute": "pm_w6actual",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "pm_W6Actual"
         },
         "pms_kpinamefx": {
           "type": "string",
@@ -377,13 +614,14 @@
           "enum": [
             "Account",
             "Physician",
-            "Department",
+            "Source Department",
             "Platform",
             "Employee",
             "Specialty",
             "Payment Type",
             "Sub Account",
-            "Service Category"
+            "Service Category",
+            "Source Function"
           ],
           "x-ms-enum-values": [
             1,
@@ -394,9 +632,11 @@
             6,
             7,
             8,
-            9
+            9,
+            10
           ],
           "Color": [
+            null,
             null,
             null,
             null,
@@ -502,13 +742,16 @@
           "x-ms-schema-name": "stf_paymenttype",
           "enum": [
             "Cash",
-            "Credit"
+            "Credit",
+            "Total"
           ],
           "x-ms-enum-values": [
             1,
-            2
+            2,
+            3
           ],
           "Color": [
+            null,
             null,
             null
           ],

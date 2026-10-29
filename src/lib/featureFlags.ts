@@ -6,4 +6,4 @@
 
 /** When true, the sidebar (Layout.tsx) shows only the "Visits" nav section —
  * Collection Plan and Management are hidden entirely, not just collapsed. */
-export const VISITS_ONLY = true;
+export const VISITS_ONLY = false;

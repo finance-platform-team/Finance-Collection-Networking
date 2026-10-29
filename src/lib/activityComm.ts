@@ -12,7 +12,7 @@ import type { Cfm_collectionplanweeksBase } from '../generated/models/Cfm_collec
 import type { Cr301_visitsBase } from '../generated/models/Cr301_visitsModel';
 import { fetchAll } from './dataverse';
 import { operationErrorMessage } from './errors';
-import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabel } from './activityOptions';
+import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabels, parseMultiChoice } from './activityOptions';
 
 /**
  * Data layer for the Activity Communication page (manager ↔ collection agent
@@ -99,10 +99,11 @@ export interface ActivityRow {
   agentIds: string[];
   employeeIds: string[];
   agentName: string;
-  objective: number | null;
+  /** cr18c_objective / cr18c_outcome are multi-select. */
+  objectives: number[];
   objectiveLabel: string;
-  outcome: number | null;
-  outcomeLabel: string;
+  outcomes: number[];
+  outcomeLabels: string[];
   reviewed: boolean;
   reviewedOn: string;
   reviewedByName: string;
@@ -294,8 +295,8 @@ const VISIT_SELECT = [
   '_cr301_account_value',
   '_cr301_agent_value',
   '_cfm_agent2_value',
-  'cfm_objective',
-  'cfm_outcome',
+  'cr18c_objective',
+  'cr18c_outcome',
   'cfm_reviewed',
   'cfm_reviewedon',
   '_cfm_reviewedby_value',
@@ -457,8 +458,8 @@ export async function loadMonth(year: number, month: number, agents: AgentRef[],
   const activities: ActivityRow[] = visitRows.map((v) => {
     const agentIds = [v._cr301_agent_value, v._cfm_agent2_value].filter((x): x is string => typeof x === 'string' && !!x);
     const employeeIds = agentIds.map((id) => agentById.get(id)?.employeeId || '').filter(Boolean);
-    const objective = v.cfm_objective == null ? null : N(v.cfm_objective);
-    const outcome = v.cfm_outcome == null ? null : N(v.cfm_outcome);
+    const objectives = parseMultiChoice(v.cr18c_objective);
+    const outcomes = parseMultiChoice(v.cr18c_outcome);
     return {
       id: String(v.cr301_visitid),
       date: String(v.cr301_visitdate || ''),
@@ -469,10 +470,10 @@ export async function loadMonth(year: number, month: number, agents: AgentRef[],
         agentIds.map((id) => agentById.get(id)?.name || '').filter(Boolean).join(' & ') ||
         formattedValue(v, '_cr301_agent_value') ||
         '—',
-      objective,
-      objectiveLabel: optionLabel(OBJECTIVE_OPTIONS, objective),
-      outcome,
-      outcomeLabel: optionLabel(OUTCOME_OPTIONS, outcome),
+      objectives,
+      objectiveLabel: optionLabels(OBJECTIVE_OPTIONS, objectives).join(', '),
+      outcomes,
+      outcomeLabels: optionLabels(OUTCOME_OPTIONS, outcomes),
       reviewed: !!v.cfm_reviewed,
       reviewedOn: String(v.cfm_reviewedon || ''),
       reviewedByName: formattedValue(v, '_cfm_reviewedby_value'),

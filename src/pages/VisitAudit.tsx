@@ -15,7 +15,7 @@ import type { Cfm_collectionplanweeks } from '../generated/models/Cfm_collection
 import type { Cfm_planweekobjectives } from '../generated/models/Cfm_planweekobjectivesModel';
 import { fetchAll } from '../lib/dataverse';
 import type { Region } from '../lib/useRegion';
-import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabel } from '../lib/activityOptions';
+import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabel, parseMultiChoice } from '../lib/activityOptions';
 import Icon from '../components/Icon';
 import './VisitAudit.css';
 
@@ -134,8 +134,9 @@ interface AuditRow {
   variance: number | null;
   status: AuditStatus;
   region: 'EG' | 'KSA' | '';
-  objective: number | null;
-  outcome: number | null;
+  /** cr18c_objective / cr18c_outcome are multi-select. */
+  objectives: number[];
+  outcomes: number[];
 }
 
 /** One cfm_planweekobjective target, resolved to its owner and plan week. */
@@ -156,10 +157,11 @@ interface ObjectiveSummary {
   year: number;
   month: number;
   week: number;
-  objective: number | null;
+  /** One objective, a multi-select combination, or [] for "Not set". */
+  objectives: number[];
   target: number;
   actual: number;
-  /** cfm_outcome value -> count; NO_OUTCOME for activities without one. */
+  /** cr18c_outcome value -> count; NO_OUTCOME for activities without one. */
   outcomes: Map<number, number>;
 }
 const NO_OUTCOME = -1;
@@ -247,8 +249,8 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
                 '_cfm_agent2_value',
                 '_createdby_value',
                 '_modifiedby_value',
-                'cfm_objective',
-                'cfm_outcome',
+                'cr18c_objective',
+                'cr18c_outcome',
               ],
               filter: `cfm_tagename eq ${TAG_COLLECTION}`,
               maxPageSize: 5000,
@@ -451,8 +453,8 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
             variance: planEntry ? planEntry.actual - planEntry.plan : null,
             status,
             region: rowRegion,
-            objective: v.cfm_objective ?? null,
-            outcome: v.cfm_outcome ?? null,
+            objectives: parseMultiChoice(v.cr18c_objective),
+            outcomes: parseMultiChoice(v.cr18c_outcome),
           });
         });
       });
@@ -596,19 +598,23 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
   /**
    * Per owner + plan week + objective: the plan's per-objective targets (cfm_planweekobjective)
    * vs. the activities logged with that objective in the same plan weeks, plus
-   * how those activities ended (cfm_outcome). Activities reuse `view`, so the
+   * how those activities ended (cr18c_outcome). Activities reuse `view`, so the
    * month/owner/status/search/region filters all apply; targets get the same
    * month/owner/search/region filters. Activities logged without an objective
    * get their own row so they don't silently vanish from the comparison.
+   *
+   * Each activity counts exactly once: a multi-select activity goes to its own
+   * row for that objective combination (flagged, no target) instead of being
+   * added to every objective it names, so Actual always sums to the activities logged.
    */
   const objectiveSummaries = useMemo(() => {
     const q = query.trim().toLowerCase();
     const groups = new Map<string, ObjectiveSummary>();
-    const group = (ownerName: string, year: number, month: number, week: number, objective: number | null) => {
-      const key = `${ownerName}|${year}|${month}|${week}|${objective ?? 'none'}`;
+    const group = (ownerName: string, year: number, month: number, week: number, objectives: number[]) => {
+      const key = `${ownerName}|${year}|${month}|${week}|${objectives.join('+') || 'none'}`;
       let g = groups.get(key);
       if (!g) {
-        g = { key, ownerName, year, month, week, objective, target: 0, actual: 0, outcomes: new Map() };
+        g = { key, ownerName, year, month, week, objectives, target: 0, actual: 0, outcomes: new Map() };
         groups.set(key, g);
       }
       return g;
@@ -618,15 +624,17 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
       if (monthFilter && monthKeyOf(t.year, t.month) !== monthFilter) return;
       if (ownerFilter && t.ownerName !== ownerFilter) return;
       if (region && (region === 'KSA' ? t.region !== 'KSA' : t.region === 'KSA')) return;
-      group(t.ownerName, t.year, t.month, t.week, t.objective).target += t.target;
+      group(t.ownerName, t.year, t.month, t.week, [t.objective]).target += t.target;
     });
+    const objectiveOrder = (o: number) => OBJECTIVE_OPTIONS.findIndex((x) => x.value === o);
     view.forEach((r) => {
-      const g = group(r.ownerName, r.expectedYear, r.expectedMonth, r.expectedWeek, r.objective);
+      const objectives = r.objectives.slice().sort((a, b) => objectiveOrder(a) - objectiveOrder(b));
+      const g = group(r.ownerName, r.expectedYear, r.expectedMonth, r.expectedWeek, objectives);
       g.actual++;
-      const outcome = r.outcome ?? NO_OUTCOME;
-      g.outcomes.set(outcome, (g.outcomes.get(outcome) || 0) + 1);
+      (r.outcomes.length ? r.outcomes : [NO_OUTCOME]).forEach((outcome) => g.outcomes.set(outcome, (g.outcomes.get(outcome) || 0) + 1));
     });
-    const objectiveOrder = (o: number | null) => (o == null ? 99 : OBJECTIVE_OPTIONS.findIndex((x) => x.value === o));
+    // Single objectives in option order, then multi-select combinations, then "Not set".
+    const rowOrder = (s: ObjectiveSummary) => (s.objectives.length === 0 ? 999 : s.objectives.length === 1 ? objectiveOrder(s.objectives[0]) : 100);
     return Array.from(groups.values())
       .sort(
         (a, b) =>
@@ -634,11 +642,13 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
           a.year - b.year ||
           a.month - b.month ||
           a.week - b.week ||
-          objectiveOrder(a.objective) - objectiveOrder(b.objective)
+          rowOrder(a) - rowOrder(b) ||
+          a.key.localeCompare(b.key)
       );
   }, [objectiveTargets, view, query, monthFilter, ownerFilter, region]);
 
-  const objectiveLabel = (o: number | null) => (o == null ? 'Not set' : optionLabel(OBJECTIVE_OPTIONS, o) || `#${o}`);
+  const objectiveLabel = (objectives: number[]) =>
+    objectives.length ? objectives.map((o) => optionLabel(OBJECTIVE_OPTIONS, o) || `#${o}`).join(' + ') : 'Not set';
   const outcomeLabel = (o: number) => (o === NO_OUTCOME ? 'No outcome' : optionLabel(OUTCOME_OPTIONS, o) || `#${o}`);
   const pctOf = (actual: number, target: number) => (target > 0 ? (actual / target) * 100 : null);
 
@@ -704,6 +714,7 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
           });
         });
         ws.autoFilter = { from: { row: 2, column: 2 }, to: { row: 2, column: columns.length + 1 } };
+        return ws;
       };
 
       // Every collection owner in scope (search/owner/region filters) x every
@@ -761,43 +772,58 @@ export default function VisitAuditPage({ region }: VisitAuditPageProps) {
       );
 
       // ---- Objectives: per owner + week + objective, target vs. actual + outcomes ----
+      // Each activity is counted once (see objectiveSummaries); multi-select
+      // activities sit on their own combination row, flagged and highlighted.
       const outcomeCols = [...OUTCOME_OPTIONS.map((o) => o.value as number), NO_OUTCOME];
-      addSheet(
+      const objectiveRows = [
+        ...objectiveSummaries,
+        // Owner-weeks with no objective target and no activities: one zero row.
+        ...scopedRoster.flatMap((a) =>
+          scopedWeeks
+            .filter(({ year, month, week }) => !objectiveSummaries.some((s) => s.ownerName === a.name && s.year === year && s.month === month && s.week === week))
+            .map(({ year, month, week }): ObjectiveSummary => ({ key: '', ownerName: a.name, year, month, week, objectives: [], target: 0, actual: 0, outcomes: new Map() }))
+        ),
+      ]
+        // Stable sort keeps objectiveSummaries' row order within a week.
+        .sort((a, b) => a.ownerName.localeCompare(b.ownerName) || a.year - b.year || a.month - b.month || a.week - b.week);
+      const objectivesWs = addSheet(
         'Objectives',
         [
           { header: 'Agent', width: 28 },
           { header: 'Month', width: 16 },
           { header: 'Week', width: 10 },
-          { header: 'Objective', width: 26 },
+          { header: 'Objective', width: 60 },
+          { header: 'Multi-select', width: 11 },
           { header: 'Target', width: 10 },
           { header: 'Actual', width: 10 },
           { header: 'Achievement %', width: 12 },
           ...outcomeCols.map((o) => ({ header: outcomeLabel(o), width: 12 })),
         ],
-        [
-          ...objectiveSummaries,
-          // Owner-weeks with no objective target and no activities: one zero row.
-          ...scopedRoster.flatMap((a) =>
-            scopedWeeks
-              .filter(({ year, month, week }) => !objectiveSummaries.some((s) => s.ownerName === a.name && s.year === year && s.month === month && s.week === week))
-              .map(({ year, month, week }): ObjectiveSummary => ({ key: '', ownerName: a.name, year, month, week, objective: null, target: 0, actual: 0, outcomes: new Map() }))
-          ),
-        ]
-          .sort((a, b) => a.ownerName.localeCompare(b.ownerName) || a.year - b.year || a.month - b.month || a.week - b.week)
-          .map((s) => {
-          const pct = pctOf(s.actual, s.target);
+        objectiveRows.map((s) => {
+          const multi = s.objectives.length > 1;
+          // Targets are per objective, so combination and "Not set" rows have none.
+          const noTarget = multi || (s.key && !s.objectives.length);
+          const pct = noTarget ? null : pctOf(s.actual, s.target);
           return [
             s.ownerName,
             `${MONTHS[s.month]} ${s.year}`,
             `Week ${s.week}`,
-            s.key ? objectiveLabel(s.objective) : 'No target',
-            s.target,
+            s.key ? objectiveLabel(s.objectives) : 'No target',
+            multi ? 'Yes' : '',
+            noTarget ? '' : s.target,
             s.actual,
             pct == null ? '' : Math.round(pct * 10) / 10,
             ...outcomeCols.map((o) => s.outcomes.get(o) || 0),
           ];
         })
       );
+      objectiveRows.forEach((s, i) => {
+        if (s.objectives.length < 2) return;
+        objectivesWs.getRow(i + 3).eachCell({ includeEmpty: true }, (cell, col) => {
+          if (col < 2) return;
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+        });
+      });
 
       // ---- Double Visits: every double visit + the owner's double count that week ----
       const doubleRows = sorted.filter((r) => r.isDouble);

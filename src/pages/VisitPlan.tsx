@@ -1159,10 +1159,13 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
 
         // 1) Create the breakdown with plain fields only — see bindLookups'
         //    comment for why the two lookups below are kept out of this call.
+        const ownerName = employees.find((e) => e.id === card.employeeId)?.name ?? '';
         const brkBody: Record<string, unknown> = {
           stf_breakdowntype: BREAKDOWN_TYPE,
           comp_breakdowntarget: target,
           stf_value: 0,
+          stf_breakdownlevel: 1,
+          stf_breakdownpath: `Employee = ${ownerName}`,
         };
         const brkResult = await Stf_kpiachievmentbreakdownsService.create(brkBody as unknown as Omit<Stf_kpiachievmentbreakdownsBase, 'stf_kpiachievmentbreakdownid'>);
         if (!brkResult.success) throw new Error(operationErrorMessage(brkResult.error, 'Could not create the task owner breakdown.'));

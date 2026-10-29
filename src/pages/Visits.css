@@ -39,6 +39,8 @@
 /* Single-choice chips */
 .vis-chips{display:flex;flex-wrap:wrap;gap:8px}
 .vis-chips-2{display:grid;grid-template-columns:1fr 1fr}
+.vis-hint{font-weight:400;color:var(--muted);font-size:12px}
+.vis-outcomes{display:flex;flex-wrap:wrap;gap:4px}
 .vis-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;
   background:var(--card);color:var(--ink);font-family:'Inter',sans-serif;font-size:13.5px;text-align:left;cursor:pointer;
   transition:border-color .15s,background .15s,box-shadow .15s}

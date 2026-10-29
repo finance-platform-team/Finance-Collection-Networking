@@ -10,23 +10,6 @@ export const Cr301_visitscfm_action = {
   766340004: 'Achieved'
 } as const;
 export type Cr301_visitscfm_action = keyof typeof Cr301_visitscfm_action;
-export const Cr301_visitscfm_objective = {
-  1: 'Collection',
-  2: 'DisputeResolution',
-  3: 'Follow_up',
-  4: 'ReconciliationforDeduction'
-} as const;
-export type Cr301_visitscfm_objective = keyof typeof Cr301_visitscfm_objective;
-export const Cr301_visitscfm_outcome = {
-  766340000: 'FullPayment',
-  766340001: 'PartialPayment',
-  766340002: 'NoPayment',
-  766340003: 'JustFollow_up',
-  766340004: 'PromisetoPay',
-  766340005: 'MissingDoc',
-  766340006: 'Escalated'
-} as const;
-export type Cr301_visitscfm_outcome = keyof typeof Cr301_visitscfm_outcome;
 export const Cr301_visitscfm_tagename = {
   766340000: 'Collection',
   766340001: 'AR',
@@ -36,6 +19,23 @@ export const Cr301_visitscfm_tagename = {
   752210001: 'NotDischarge'
 } as const;
 export type Cr301_visitscfm_tagename = keyof typeof Cr301_visitscfm_tagename;
+export const Cr301_visitscr18c_objective = {
+  1: 'Collection',
+  2: 'DisputeResolution',
+  3: 'Follow_up',
+  4: 'ReconciliationforDeduction'
+} as const;
+export type Cr301_visitscr18c_objective = keyof typeof Cr301_visitscr18c_objective;
+export const Cr301_visitscr18c_outcome = {
+  766340000: 'FullPayment',
+  766340001: 'PartialPayment',
+  766340002: 'NoPayment',
+  766340003: 'JustFollow_up',
+  766340004: 'PromisetoPay',
+  766340005: 'MissingDoc',
+  766340006: 'Escalated'
+} as const;
+export type Cr301_visitscr18c_outcome = keyof typeof Cr301_visitscr18c_outcome;
 export const Cr301_visitscr301_plannedadhoc = {
   983080000: 'Planned',
   983080001: 'Ad_hoc'
@@ -271,8 +271,6 @@ export interface Cr301_visitsBase {
   "cfm_Agent2@odata.bind"?: string;
   cfm_duedatenextaction?: string;
   "cfm_NextActionOwner@odata.bind"?: string;
-  cfm_objective?: Cr301_visitscfm_objective;
-  cfm_outcome?: Cr301_visitscfm_outcome;
   cfm_reviewed?: boolean;
   "cfm_reviewedby@odata.bind"?: string;
   cfm_reviewedon?: string;
@@ -285,6 +283,8 @@ export interface Cr301_visitsBase {
   cr18c_details?: string;
   cr18c_distance?: number;
   cr18c_distancetosubaccount?: number;
+  cr18c_objective?: Cr301_visitscr18c_objective;
+  cr18c_outcome?: Cr301_visitscr18c_outcome;
   cr18c_purpose?: string;
   "cr301_Account@odata.bind": string;
   cr301_accountneeds?: string;
@@ -322,6 +322,7 @@ export interface Cr301_visitsBase {
   ms_closeoutlocationstatus?: Cr301_visitsms_closeoutlocationstatus;
   ms_closeoutlongitude?: number;
   ms_engagementtype?: Cr301_visitsms_engagementtype;
+  ms_expectedoutcomeofthisactivity?: string;
   ms_ishiringpotential: boolean;
   ms_ismanagementengagement?: boolean;
   ms_ismanagementengagementrequired?: Cr301_visitsms_ismanagementengagementrequired;
@@ -357,8 +358,6 @@ export interface Cr301_visits extends Cr301_visitsBase {
   cfm_actionname?: string;
   cfm_agent2name?: string;
   cfm_nextactionownername?: string;
-  cfm_objectivename?: string;
-  cfm_outcomename?: string;
   cfm_reviewedbyname?: string;
   cfm_reviewedbyyominame?: string;
   cfm_reviewedname?: string;
@@ -367,6 +366,8 @@ export interface Cr301_visits extends Cr301_visitsBase {
   cr18c_checkonagentname?: string;
   cr18c_locationcomplianceflag?: boolean;
   cr18c_locationcomplianceflagname?: string;
+  cr18c_objectivename?: string;
+  cr18c_outcomename?: string;
   cr301_accountname?: string;
   cr301_agentname?: string;
   cr301_conferencename?: string;

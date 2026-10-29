@@ -120,89 +120,6 @@
           "x-ms-read-only": true,
           "maxLength": 850
         },
-        "cfm_objective": {
-          "type": "string",
-          "title": "objective",
-          "x-ms-dataverse-attribute": "cfm_objective",
-          "x-ms-dataverse-type": "PicklistType",
-          "x-ms-schema-name": "cfm_objective",
-          "enum": [
-            "Collection",
-            "Dispute Resolution",
-            "Follow-up",
-            "Reconciliation for Deduction"
-          ],
-          "x-ms-enum-values": [
-            1,
-            2,
-            3,
-            4
-          ],
-          "Color": [
-            null,
-            null,
-            null,
-            null
-          ],
-          "x-ms-optionsetmetadataid": "cf58524e-7dc8-f111-a05b-00224882d001",
-          "x-ms-isGlobal": true,
-          "x-ms-optionsetdisplayname": "objective",
-          "x-ms-optionSetType": "Picklist"
-        },
-        "cfm_objectivename": {
-          "type": "string",
-          "title": "cfm_objectivename",
-          "x-ms-dataverse-attribute": "cfm_objectivename",
-          "x-ms-dataverse-type": "VirtualType",
-          "x-ms-schema-name": "cfm_objectiveName",
-          "x-ms-read-only": true
-        },
-        "cfm_outcome": {
-          "type": "string",
-          "title": "OutCome",
-          "x-ms-dataverse-attribute": "cfm_outcome",
-          "x-ms-dataverse-type": "PicklistType",
-          "x-ms-schema-name": "cfm_OutCome",
-          "enum": [
-            "Full Payment",
-            "Partial Payment",
-            " No Payment ",
-            "Just Follow-up",
-            "Promise to Pay ",
-            "Missing Doc",
-            "Escalated"
-          ],
-          "x-ms-enum-values": [
-            766340000,
-            766340001,
-            766340002,
-            766340003,
-            766340004,
-            766340005,
-            766340006
-          ],
-          "Color": [
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-          ],
-          "x-ms-optionsetmetadataid": "8611302f-8dc8-f111-a05b-00224882d001",
-          "x-ms-isGlobal": true,
-          "x-ms-optionsetdisplayname": "Outcome",
-          "x-ms-optionSetType": "Picklist"
-        },
-        "cfm_outcomename": {
-          "type": "string",
-          "title": "cfm_outcomename",
-          "x-ms-dataverse-attribute": "cfm_outcomename",
-          "x-ms-dataverse-type": "VirtualType",
-          "x-ms-schema-name": "cfm_outcomeName",
-          "x-ms-read-only": true
-        },
         "cfm_reviewed": {
           "type": "string",
           "title": "Reviewed",
@@ -414,6 +331,89 @@
           "x-ms-dataverse-attribute": "cr18c_locationcomplianceflagname",
           "x-ms-dataverse-type": "VirtualType",
           "x-ms-schema-name": "cr18c_locationcomplianceflagName",
+          "x-ms-read-only": true
+        },
+        "cr18c_objective": {
+          "type": "string",
+          "title": "objective",
+          "x-ms-dataverse-attribute": "cr18c_objective",
+          "x-ms-dataverse-type": "MultiSelectPicklistType",
+          "x-ms-schema-name": "cr18c_objective",
+          "enum": [
+            "Collection",
+            "Dispute Resolution",
+            "Follow-up",
+            "Reconciliation for Deduction"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "cf58524e-7dc8-f111-a05b-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "objective",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "cr18c_objectivename": {
+          "type": "string",
+          "title": "cr18c_objectivename",
+          "x-ms-dataverse-attribute": "cr18c_objectivename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cr18c_objectiveName",
+          "x-ms-read-only": true
+        },
+        "cr18c_outcome": {
+          "type": "string",
+          "title": "Outcome",
+          "x-ms-dataverse-attribute": "cr18c_outcome",
+          "x-ms-dataverse-type": "MultiSelectPicklistType",
+          "x-ms-schema-name": "cr18c_Outcome",
+          "enum": [
+            "Full Payment",
+            "Partial Payment",
+            " No Payment ",
+            "Just Follow-up",
+            "Promise to Pay ",
+            "Missing Doc",
+            "Escalated"
+          ],
+          "x-ms-enum-values": [
+            766340000,
+            766340001,
+            766340002,
+            766340003,
+            766340004,
+            766340005,
+            766340006
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "8611302f-8dc8-f111-a05b-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Outcome",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "cr18c_outcomename": {
+          "type": "string",
+          "title": "cr18c_outcomename",
+          "x-ms-dataverse-attribute": "cr18c_outcomename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cr18c_outcomeName",
           "x-ms-read-only": true
         },
         "cr18c_purpose": {
@@ -1488,6 +1488,14 @@
           "x-ms-dataverse-type": "VirtualType",
           "x-ms-schema-name": "ms_engagementtypeName",
           "x-ms-read-only": true
+        },
+        "ms_expectedoutcomeofthisactivity": {
+          "type": "string",
+          "title": "Expected outcome of this activity",
+          "x-ms-dataverse-attribute": "ms_expectedoutcomeofthisactivity",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_Expectedoutcomeofthisactivity",
+          "maxLength": 1000
         },
         "ms_ishiringpotential": {
           "type": "string",

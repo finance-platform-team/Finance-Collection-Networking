@@ -19,7 +19,7 @@ import { visitStatusClass } from '../lib/visitStatus';
 import { escapeForCsv, downloadCsv } from '../lib/csvExport';
 import { fetchStakeholdersByAccount, initials } from '../lib/stakeholders';
 import type { Stakeholder } from '../lib/stakeholders';
-import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabel } from '../lib/activityOptions';
+import { OBJECTIVE_OPTIONS, OUTCOME_OPTIONS, optionLabel, optionLabels, parseMultiChoice, toMultiChoice } from '../lib/activityOptions';
 import type { Region } from '../lib/useRegion';
 import './Visits.css';
 
@@ -243,7 +243,7 @@ function needsFollowThrough(action: string): boolean {
   return action !== '' && Number(action) !== ACTION_ACHIEVED;
 }
 
-// Pill tone per cfm_outcome — reuses the shared acc-visit-status-* palette.
+// Pill tone per cr18c_outcome — reuses the shared acc-visit-status-* palette.
 const OUTCOME_TONE: Record<number, 'ok' | 'info' | 'warn' | 'bad' | 'none'> = {
   766340000: 'ok', // Full Payment
   766340001: 'info', // Partial Payment
@@ -298,6 +298,41 @@ function ChipGroup({
             disabled={disabled}
             className={`vis-chip${on ? ' on' : ''}`}
             onClick={() => onChange(on && allowClear ? '' : String(o.value))}
+          >
+            <span className="vis-chip-dot">{on && <Icon className="fa-solid fa-check" />}</span>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Multi-choice chip picker — for the multi-select choice columns. */
+function MultiChipGroup({
+  options,
+  values,
+  onChange,
+  columns,
+}: {
+  options: ChipOption[];
+  values: string[];
+  onChange: (values: string[]) => void;
+  columns?: 2;
+}) {
+  return (
+    <div className={`vis-chips${columns ? ' vis-chips-2' : ''}`} role="group">
+      {options.map((o) => {
+        const v = String(o.value);
+        const on = values.includes(v);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="checkbox"
+            aria-checked={on}
+            className={`vis-chip${on ? ' on' : ''}`}
+            onClick={() => onChange(on ? values.filter((x) => x !== v) : [...values, v])}
           >
             <span className="vis-chip-dot">{on && <Icon className="fa-solid fa-check" />}</span>
             {o.label}
@@ -428,8 +463,8 @@ interface VisitRow {
   revisit: string;
   notes: string;
   region: 'EG' | 'KSA' | '';
-  objective: number | null;
-  outcome: number | null;
+  objectives: number[];
+  outcomes: number[];
   action: number | null;
   dueDate: string;
   actionOwnerId: string;
@@ -504,8 +539,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
   const [agent2Query, setAgent2Query] = useState('');
   const [agent2PickerOpen, setAgent2PickerOpen] = useState(false);
   const [formNotes, setFormNotes] = useState('');
-  const [formObjective, setFormObjective] = useState('');
-  const [formOutcome, setFormOutcome] = useState('');
+  const [formObjectives, setFormObjectives] = useState<string[]>([]);
+  const [formOutcomes, setFormOutcomes] = useState<string[]>([]);
   const [formAction, setFormAction] = useState('');
   const [formDueDate, setFormDueDate] = useState('');
   const [formActionOwnerId, setFormActionOwnerId] = useState('');
@@ -556,8 +591,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
             'cfm_tagename',
             'cfm_revisitdate',
             '_cfm_agent2_value',
-            'cfm_objective',
-            'cfm_outcome',
+            'cr18c_objective',
+            'cr18c_outcome',
             'cfm_action',
             'cfm_duedatenextaction',
             '_cfm_nextactionowner_value',
@@ -628,8 +663,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
           revisit: extra.cfm_revisitdate || '',
           notes: r.cr301_notes || '',
           region: agent?.region || '',
-          objective: r.cfm_objective ?? null,
-          outcome: r.cfm_outcome ?? null,
+          objectives: parseMultiChoice(r.cr18c_objective),
+          outcomes: parseMultiChoice(r.cr18c_outcome),
           action: r.cfm_action ?? null,
           dueDate: r.cfm_duedatenextaction || '',
           actionOwnerId: r._cfm_nextactionowner_value || '',
@@ -780,8 +815,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       setFormAgent2Id(row.agent2Id);
       setAgent2Query(row.owner2);
       setFormNotes(row.notes);
-      setFormObjective(row.objective == null ? '' : String(row.objective));
-      setFormOutcome(row.outcome == null ? '' : String(row.outcome));
+      setFormObjectives(row.objectives.map(String));
+      setFormOutcomes(row.outcomes.map(String));
       setFormAction(row.action == null ? '' : String(row.action));
       setFormDueDate(row.dueDate ? row.dueDate.substring(0, 10) : '');
       setFormActionOwnerId(row.actionOwnerId);
@@ -798,8 +833,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       setFormAgent2Id('');
       setAgent2Query('');
       setFormNotes('');
-      setFormObjective('');
-      setFormOutcome('');
+      setFormObjectives([]);
+      setFormOutcomes([]);
       setFormAction('');
       setFormDueDate('');
       setFormActionOwnerId('');
@@ -832,8 +867,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
     if (isDouble && !formAgent2Id) errors.agent2 = 'A double activity needs a second task owner.';
     else if (isDouble && formAgentId === formAgent2Id) errors.agent2 = 'Must be different from the task owner.';
     if (parseInt(formStatus, 10) !== VISIT_STATUS_OPEN && !formDate) errors.date = 'Required once the status is no longer Open.';
-    if (!formObjective) errors.objective = 'Choose an objective.';
-    if (!formOutcome) errors.outcome = 'Choose an outcome.';
+    if (!formObjectives.length) errors.objective = 'Choose at least one objective.';
+    if (!formOutcomes.length) errors.outcome = 'Choose at least one outcome.';
     else if (!formAction) errors.action = 'Choose the next action.';
     if (!formStakeholderId) errors.stakeholder = formAccountId ? 'Choose who you dealt with.' : 'Pick a company first.';
     setFieldErrors(errors);
@@ -846,7 +881,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
 
     // Next Action only applies once an Outcome is picked; Due Date / Owner are
     // dropped (and unlinked) once the action no longer needs them.
-    const action = formOutcome ? formAction : '';
+    const action = formOutcomes.length ? formAction : '';
     const followThrough = needsFollowThrough(action);
     const actionOwnerId = followThrough ? formActionOwnerId : '';
 
@@ -865,8 +900,9 @@ export default function VisitsPage({ region }: VisitsPageProps) {
         cr301_notes: formNotes.trim() || null,
         // Not in the generated model — see the module comment above.
         cfm_tagename: TAG_COLLECTION,
-        cfm_objective: formObjective ? parseInt(formObjective, 10) : null,
-        cfm_outcome: formOutcome ? parseInt(formOutcome, 10) : null,
+        // Multi-select choices — written as "1,3".
+        cr18c_objective: toMultiChoice(OBJECTIVE_OPTIONS, formObjectives.map(Number)),
+        cr18c_outcome: toMultiChoice(OUTCOME_OPTIONS, formOutcomes.map(Number)),
         cfm_action: action ? parseInt(action, 10) : null,
         cfm_duedatenextaction: followThrough && formDueDate ? new Date(formDueDate).toISOString() : null,
       };
@@ -1012,8 +1048,8 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       fmtDate(v.date),
       v.statusLabel,
       v.isDouble ? 'Double' : 'Single',
-      optionLabel(OBJECTIVE_OPTIONS, v.objective),
-      optionLabel(OUTCOME_OPTIONS, v.outcome),
+      optionLabels(OBJECTIVE_OPTIONS, v.objectives).join(', '),
+      optionLabels(OUTCOME_OPTIONS, v.outcomes).join(', '),
       optionLabel(ACTION_OPTIONS, v.action),
       fmtDate(v.dueDate),
       v.actionOwner,
@@ -1230,12 +1266,22 @@ export default function VisitsPage({ region }: VisitsPageProps) {
                           {v.revisit ? ` · Revisit ${fmtDate(v.revisit)}` : ''}
                         </div>
                       </td>
-                      <td>{v.objective != null ? optionLabel(OBJECTIVE_OPTIONS, v.objective) : <span className="vis-muted">—</span>}</td>
                       <td>
-                        {v.outcome != null ? (
-                          <span className={`acc-visit-status acc-visit-status-${OUTCOME_TONE[v.outcome] || 'none'}`}>
-                            {optionLabel(OUTCOME_OPTIONS, v.outcome)}
-                          </span>
+                        {v.objectives.length ? (
+                          optionLabels(OBJECTIVE_OPTIONS, v.objectives).map((l) => <div key={l}>{l}</div>)
+                        ) : (
+                          <span className="vis-muted">—</span>
+                        )}
+                      </td>
+                      <td>
+                        {v.outcomes.length ? (
+                          <div className="vis-outcomes">
+                            {OUTCOME_OPTIONS.filter((o) => v.outcomes.includes(o.value)).map((o) => (
+                              <span key={o.value} className={`acc-visit-status acc-visit-status-${OUTCOME_TONE[o.value] || 'none'}`}>
+                                {o.label}
+                              </span>
+                            ))}
+                          </div>
                         ) : (
                           <span className="vis-muted">—</span>
                         )}
@@ -1556,14 +1602,14 @@ export default function VisitsPage({ region }: VisitsPageProps) {
 
             <div className={`acc-fld${fieldErrors.objective ? ' vis-invalid' : ''}`} data-field="objective">
               <label>
-                Objective <span className="dm-req">*</span>
+                Objective <span className="dm-req">*</span> <span className="vis-hint">· pick one or more</span>
               </label>
-              <ChipGroup
+              <MultiChipGroup
                 options={OBJECTIVE_OPTIONS}
-                value={formObjective}
+                values={formObjectives}
                 columns={2}
-                onChange={(val) => {
-                  setFormObjective(val);
+                onChange={(vals) => {
+                  setFormObjectives(vals);
                   clearFieldError('objective');
                 }}
               />
@@ -1572,20 +1618,20 @@ export default function VisitsPage({ region }: VisitsPageProps) {
 
             <div className={`acc-fld${fieldErrors.outcome ? ' vis-invalid' : ''}`} data-field="outcome">
               <label>
-                Outcome <span className="dm-req">*</span>
+                Outcome <span className="dm-req">*</span> <span className="vis-hint">· pick one or more</span>
               </label>
-              <ChipGroup
+              <MultiChipGroup
                 options={OUTCOME_OPTIONS}
-                value={formOutcome}
-                onChange={(val) => {
-                  setFormOutcome(val);
+                values={formOutcomes}
+                onChange={(vals) => {
+                  setFormOutcomes(vals);
                   clearFieldError('outcome');
                 }}
               />
               {fieldErrors.outcome && <div className="vis-ferr">{fieldErrors.outcome}</div>}
             </div>
 
-            {formOutcome && (
+            {formOutcomes.length > 0 && (
               <div className={`acc-fld${fieldErrors.action ? ' vis-invalid' : ''}`} data-field="action">
                 <label>
                   Next Action <span className="dm-req">*</span>

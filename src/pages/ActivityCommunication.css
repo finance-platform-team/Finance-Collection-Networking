@@ -144,6 +144,7 @@
 .ac-pill-info{background:var(--ac-info-bg);color:var(--ac-info-text)}
 .ac-pill-bad{background:var(--ac-bad-bg);color:var(--ac-bad-text)}
 .ac-pill-none{background:var(--ac-none-bg);color:var(--ac-none-text)}
+.ac-pills{display:inline-flex;flex-wrap:wrap;gap:4px}
 .ac-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .ac-chip{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:11.5px;font-weight:500;
   background:var(--ac-none-bg);color:var(--ac-text)}
