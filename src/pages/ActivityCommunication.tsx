@@ -47,6 +47,7 @@ import {
   threadKeyOf,
   unreadFor,
   type ActionItem,
+  type ThreadRole,
 } from '../lib/actionItems';
 import type { MonthBadge } from '../lib/useActionBadges';
 import type { PageKey } from '../components/Layout';
@@ -98,8 +99,8 @@ export default function ActivityCommunicationPage({ region, onNavigate, monthBad
   const myIds = useMemo(() => myIdsOf(user), [user]);
 
   const isOwnActivity = useCallback((a: ActivityRow) => isOwnActivityOf(user, a), [user]);
-  const roleFor = useCallback((t: ThreadTarget): UserRole => devRole ?? roleOn(user, t), [devRole, user]);
-  const senderRoleOf = (r: UserRole) => (r === 'agent' ? ROLE_AGENT : ROLE_MANAGER);
+  const roleFor = useCallback((t: ThreadTarget): ThreadRole => devRole ?? roleOn(user, t), [devRole, user]);
+  const senderRoleOf = (r: ThreadRole) => (r === 'agent' ? ROLE_AGENT : ROLE_MANAGER);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -297,7 +298,7 @@ export default function ActivityCommunicationPage({ region, onNavigate, monthBad
 
   /** Optimistically appends a message, then swaps in the saved one (or
    *  removes it and toasts on failure). Resolves false on failure. */
-  async function postMessage(m: Omit<NewMessage, 'senderRole' | 'sender'>, asRole: UserRole): Promise<boolean> {
+  async function postMessage(m: Omit<NewMessage, 'senderRole' | 'sender'>, asRole: ThreadRole): Promise<boolean> {
     const myRole = senderRoleOf(asRole);
     const tempId = `temp-${++tempSeq.current}`;
     const optimistic: Message = {
@@ -334,7 +335,7 @@ export default function ActivityCommunicationPage({ region, onNavigate, monthBad
   }
 
   function onSend(body: string) {
-    if (!target) return;
+    if (!target || roleFor(target) === 'viewer') return;
     void postMessage({ ...threadFields(target), type: MSG_COMMENT, body }, roleFor(target));
   }
 

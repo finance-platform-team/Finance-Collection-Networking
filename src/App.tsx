@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Layout, { type PageKey } from './components/Layout';
+import Layout, { DEFAULT_PAGE, type PageKey } from './components/Layout';
 import AndalusiaLoader from './components/AndalusiaLoader';
 import { useRegion } from './lib/useRegion';
 import { useActionBadges } from './lib/useActionBadges';
@@ -17,7 +17,7 @@ import VisitAuditPage from './pages/VisitAudit';
 import ActivityCommunicationPage from './pages/ActivityCommunication';
 
 function App() {
-  const [page, setPage] = useState<PageKey>('visit-plan');
+  const [page, setPage] = useState<PageKey>(DEFAULT_PAGE);
   const [region, setRegion] = useRegion();
   const [booting, setBooting] = useState(true);
   const actionBadges = useActionBadges(region, page);

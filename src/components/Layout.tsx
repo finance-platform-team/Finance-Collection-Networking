@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTheme } from '../lib/useTheme';
 import type { Region } from '../lib/useRegion';
-import { VISITS_ONLY } from '../lib/featureFlags';
+import { VISITS_ONLY, PAGE_ENABLED } from '../lib/featureFlags';
 import Icon from './Icon';
 import './Layout.css';
 
@@ -30,9 +30,9 @@ interface NavGroup {
   items: NavItem[];
 }
 
-// Every page's route/component/sidebar link is declared here; VISITS_ONLY (below,
-// where the sidebar renders) decides which groups actually show.
-const NAV_GROUPS: NavGroup[] = [
+// Every page's route/component/sidebar link is declared here; VISITS_ONLY and
+// PAGE_ENABLED (featureFlags.ts) decide which groups/items actually show.
+const ALL_NAV_GROUPS: NavGroup[] = [
   {
     title: 'Collection Plan',
     items: [
@@ -44,7 +44,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Field Activities',
     items: [
-      { key: 'visit-plan', icon: 'fa-bullseye', label: 'Visits — Planned & Actual' },
+      { key: 'visit-plan', icon: 'fa-bullseye', label: 'Planned & Actual' },
       { key: 'visits', icon: 'fa-location-dot', label: 'Activities Log' },
       { key: 'visit-audit', icon: 'fa-magnifying-glass-chart', label: 'Activity Audit' },
       { key: 'activity-communication', icon: 'fa-comment', label: 'Activity Communication' },
@@ -61,6 +61,13 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+const NAV_GROUPS: NavGroup[] = ALL_NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => PAGE_ENABLED[i.key]) })).filter(
+  (g) => g.items.length > 0,
+);
+
+/** First page the sidebar shows — the app's landing page. */
+export const DEFAULT_PAGE: PageKey = NAV_GROUPS[0]?.items[0]?.key ?? 'visits';
 
 const REGION_OPTIONS: { code: Region; name: string; hint: string }[] = [
   { code: 'EG', name: 'Egypt', hint: 'Everything outside the KSA business units' },

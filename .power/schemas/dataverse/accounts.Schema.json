@@ -10,6 +10,62 @@
       "x-ms-dataverse-primary-id": "cr301_accountid",
       "x-ms-dataverse-primary-name": "cr301_acccountname",
       "properties": {
+        "and_nearestandalusiabranchbu": {
+          "type": "string",
+          "title": "Nearest Andalusia branch BU",
+          "x-ms-dataverse-attribute": "and_nearestandalusiabranchbu",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "and_NearestAndalusiabranchBU"
+        },
+        "and_nearestandalusiabranchbuname": {
+          "type": "string",
+          "title": "and_nearestandalusiabranchbuname",
+          "x-ms-dataverse-attribute": "and_nearestandalusiabranchbuname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "and_NearestAndalusiabranchBUName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "ats_accounttype": {
+          "type": "string",
+          "title": "Account Type3",
+          "x-ms-dataverse-attribute": "ats_accounttype",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ats_accounttype",
+          "enum": [
+            "Direct Customer",
+            "Distributor",
+            "Group Purchasing",
+            "Government Entity",
+            "Other"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "ccbb86c0-50a2-f111-b8dc-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Account Type",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ats_accounttypename": {
+          "type": "string",
+          "title": "ats_accounttypename",
+          "x-ms-dataverse-attribute": "ats_accounttypename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ats_accounttypeName",
+          "x-ms-read-only": true
+        },
         "ats_archivereason": {
           "type": "string",
           "title": "Archive Reason",
@@ -314,7 +370,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "c4c31da5-4d96-f111-8075-00224882d001",
+          "x-ms-optionsetmetadataid": "02660009-f7b7-f111-aaac-00224882d001",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Product Interest Category",
           "x-ms-optionSetType": "Picklist"
@@ -601,6 +657,22 @@
           "x-ms-read-only": true,
           "maxLength": 100
         },
+        "ats_subaccountref": {
+          "type": "string",
+          "title": "SUB",
+          "x-ms-dataverse-attribute": "ats_subaccountref",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ats_subaccountref"
+        },
+        "ats_subaccountrefname": {
+          "type": "string",
+          "title": "ats_subaccountrefname",
+          "x-ms-dataverse-attribute": "ats_subaccountrefname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ats_subaccountrefName",
+          "x-ms-read-only": true,
+          "maxLength": 500
+        },
         "ats_tradingname": {
           "type": "string",
           "title": "Trading Name",
@@ -627,16 +699,40 @@
             "South",
             "Remote",
             "Jeddah",
-            "KSA"
+            "KSA",
+            "Egypt",
+            "Remote South",
+            "Remote North",
+            "Industrial",
+            "East",
+            "West",
+            "Middle",
+            "Latent"
           ],
           "x-ms-enum-values": [
             989230000,
             989230001,
             989230002,
             989230003,
-            989230004
+            989230004,
+            766340001,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006,
+            124700007
           ],
           "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null,
             null,
             null,
@@ -729,14 +825,17 @@
           "enum": [
             "A",
             "B",
-            "C"
+            "C",
+            "D"
           ],
           "x-ms-enum-values": [
             983080000,
             983080001,
-            983080002
+            983080002,
+            124700001
           ],
           "Color": [
+            null,
             null,
             null,
             null
@@ -834,7 +933,7 @@
           "x-ms-dataverse-type": "PicklistType",
           "x-ms-schema-name": "cr301_AccountType",
           "enum": [
-            "Corporate/Community",
+            "Community",
             "Medical",
             "Academy",
             "Africa",
@@ -845,7 +944,22 @@
             "VD",
             "Ventures",
             "Insurance ",
-            "Direct "
+            "Direct ",
+            "Community Cash Card",
+            "Community Cash Account",
+            "Egypt Medical Tourism",
+            "Medical Tourism",
+            "Corporate Sales Check-up",
+            "Community Cash Offers",
+            "Cash deals",
+            "Cash",
+            "Home Care Cash",
+            "Credit",
+            "Cash Account",
+            "Other",
+            "KSA · District BD",
+            "Industry",
+            "Managerial"
           ],
           "x-ms-enum-values": [
             983080000,
@@ -859,7 +973,22 @@
             989230007,
             989230008,
             983080002,
-            766340001
+            766340001,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006,
+            124700007,
+            124700008,
+            124700009,
+            124700010,
+            124700011,
+            124700012,
+            124700013,
+            983080003,
+            983080004
           ],
           "Color": [
             "#9cbfd6",
@@ -873,7 +1002,22 @@
             "#9eb2de",
             "#87e08a",
             "#8892eb",
-            "#d1ffcf"
+            "#d1ffcf",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
           ],
           "x-ms-optionsetmetadataid": "be6fe7ab-898c-f011-b4cc-6045bdf37b46",
           "x-ms-isGlobal": true,
@@ -1095,14 +1239,56 @@
           "enum": [
             "AXA",
             "Metlife",
-            "Bupa"
+            "Bupa",
+            "Al Rajhi Takaful",
+            "Arabian Shield",
+            "Cash",
+            "CHARITY",
+            "Globe Med",
+            "Gulf Union",
+            "Isalmic Bank",
+            "Malath",
+            "Med Gulf",
+            "MOH",
+            "N.C.C.I.",
+            "TCS",
+            "TCS-GOSI",
+            "TUCI"
           ],
           "x-ms-enum-values": [
             983080000,
             983080001,
-            983080002
+            983080002,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006,
+            124700007,
+            124700008,
+            124700009,
+            124700010,
+            124700011,
+            124700012,
+            124700013,
+            124700014
           ],
           "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null,
             null,
             null
@@ -1241,6 +1427,67 @@
           "x-ms-schema-name": "cr301_Website",
           "maxLength": 100
         },
+        "cr603_accountcategory": {
+          "type": "string",
+          "title": "Account Category",
+          "x-ms-dataverse-attribute": "cr603_accountcategory",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "cr603_AccountCategory",
+          "enum": [
+            "Community Cash Card",
+            "Direct",
+            "Insurance",
+            "Community Cash Account",
+            "Cash",
+            "Cash deals",
+            "Community Cash Offers",
+            "Home Care Cash",
+            "Other",
+            "Cash Account",
+            "Credit",
+            "ksa . District BD"
+          ],
+          "x-ms-enum-values": [
+            999740000,
+            999740001,
+            999740002,
+            999740003,
+            999740004,
+            999740005,
+            999740006,
+            999740007,
+            999740008,
+            999740009,
+            999740010,
+            999740011
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "688a9726-b89d-47f3-ba24-9d70ac611b1a",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Account Category G",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "cr603_accountcategoryname": {
+          "type": "string",
+          "title": "cr603_accountcategoryname",
+          "x-ms-dataverse-attribute": "cr603_accountcategoryname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "cr603_accountcategoryName",
+          "x-ms-read-only": true
+        },
         "createdby": {
           "type": "string",
           "title": "Created By",
@@ -1372,6 +1619,694 @@
           "required": true,
           "maxLength": 100
         },
+        "ms_accountlifecycle": {
+          "type": "string",
+          "title": "Account lifecycle",
+          "x-ms-dataverse-attribute": "ms_accountlifecycle",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Accountlifecycle",
+          "enum": [
+            "Growing",
+            "Stagnant",
+            "Declining"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "b2863e6a-bfa6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Account lifecycle",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_accountlifecyclename": {
+          "type": "string",
+          "title": "ms_accountlifecyclename",
+          "x-ms-dataverse-attribute": "ms_accountlifecyclename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_accountlifecycleName",
+          "x-ms-read-only": true
+        },
+        "ms_accountneed": {
+          "type": "string",
+          "title": "Account need",
+          "x-ms-dataverse-attribute": "ms_accountneed",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Accountneed",
+          "enum": [
+            "Clinical Operations",
+            "Clinical Support",
+            "Co-Management",
+            "Consultation Fees",
+            "Equipment Access",
+            "Marketing Support",
+            "cash back dispensing",
+            "Training & Education",
+            "Service complaint"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006,
+            124700007,
+            124700008
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "128a8433-bfa6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Account need",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_accountneeddetails": {
+          "type": "string",
+          "title": "Account need details",
+          "x-ms-dataverse-attribute": "ms_accountneeddetails",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_Accountneeddetails",
+          "maxLength": 100
+        },
+        "ms_accountneedname": {
+          "type": "string",
+          "title": "ms_accountneedname",
+          "x-ms-dataverse-attribute": "ms_accountneedname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_accountneedName",
+          "x-ms-read-only": true
+        },
+        "ms_accountnewold": {
+          "type": "string",
+          "title": "Account New/Old",
+          "x-ms-dataverse-attribute": "ms_accountnewold",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_AccountNewOld",
+          "enum": [
+            "New",
+            "Old"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "71870a7d-ecb7-f111-aaac-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "New/Old",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_accountnewoldname": {
+          "type": "string",
+          "title": "ms_accountnewoldname",
+          "x-ms-dataverse-attribute": "ms_accountnewoldname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_accountnewoldName",
+          "x-ms-read-only": true
+        },
+        "ms_agentname": {
+          "type": "string",
+          "title": "Agent Name",
+          "x-ms-dataverse-attribute": "ms_agentname",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ms_AgentName"
+        },
+        "ms_agentnamename": {
+          "type": "string",
+          "title": "ms_agentnamename",
+          "x-ms-dataverse-attribute": "ms_agentnamename",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_AgentNameName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "ms_approvalstatus": {
+          "type": "string",
+          "title": "Approval status",
+          "x-ms-dataverse-attribute": "ms_approvalstatus",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Approvalstatus",
+          "enum": [
+            "Approved",
+            "Rejected",
+            "Pending"
+          ],
+          "x-ms-enum-values": [
+            620930000,
+            620930001,
+            620930002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "d9f7c992-9ae1-f011-8407-7ced8d0cef8a",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Approval Status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_approvalstatusname": {
+          "type": "string",
+          "title": "ms_approvalstatusname",
+          "x-ms-dataverse-attribute": "ms_approvalstatusname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_approvalstatusName",
+          "x-ms-read-only": true
+        },
+        "ms_approvedby": {
+          "type": "string",
+          "title": "Approved by",
+          "x-ms-dataverse-attribute": "ms_approvedby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ms_Approvedby"
+        },
+        "ms_approvedbyname": {
+          "type": "string",
+          "title": "ms_approvedbyname",
+          "x-ms-dataverse-attribute": "ms_approvedbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_ApprovedbyName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "ms_approvedbyyominame": {
+          "type": "string",
+          "title": "ms_approvedbyyominame",
+          "x-ms-dataverse-attribute": "ms_approvedbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_ApprovedbyYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 200
+        },
+        "ms_approvedon": {
+          "type": "string",
+          "title": "Approved on",
+          "x-ms-dataverse-attribute": "ms_approvedon",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "ms_Approvedon"
+        },
+        "ms_casemix": {
+          "type": "string",
+          "title": "Case mix",
+          "x-ms-dataverse-attribute": "ms_casemix",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Casemix",
+          "enum": [
+            "Standard Case Mix",
+            "High Case Mix",
+            "Mixed Cases"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "d9bd8ee4-bea6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Case mix",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_casemixname": {
+          "type": "string",
+          "title": "ms_casemixname",
+          "x-ms-dataverse-attribute": "ms_casemixname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_casemixName",
+          "x-ms-read-only": true
+        },
+        "ms_casetype": {
+          "type": "string",
+          "title": "Case type",
+          "x-ms-dataverse-attribute": "ms_casetype",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Casetype",
+          "enum": [
+            "Medical",
+            "Surgical",
+            "Both"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "a5f6b4b7-bea6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Case type2",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_casetypename": {
+          "type": "string",
+          "title": "ms_casetypename",
+          "x-ms-dataverse-attribute": "ms_casetypename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_casetypeName",
+          "x-ms-read-only": true
+        },
+        "ms_clinicshifttime": {
+          "type": "string",
+          "title": "Clinic / shift time",
+          "x-ms-dataverse-attribute": "ms_clinicshifttime",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_Clinicshifttime",
+          "maxLength": 100
+        },
+        "ms_competitivesegment": {
+          "type": "string",
+          "title": "Competitive segment",
+          "x-ms-dataverse-attribute": "ms_competitivesegment",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Competitivesegment",
+          "enum": [
+            "Mostly Andalusia",
+            "Shared",
+            "Competitor Dominant"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "73cf5dcb-bfa6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Competitive segment",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_competitivesegmentname": {
+          "type": "string",
+          "title": "ms_competitivesegmentname",
+          "x-ms-dataverse-attribute": "ms_competitivesegmentname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_competitivesegmentName",
+          "x-ms-read-only": true
+        },
+        "ms_coveredclass": {
+          "type": "string",
+          "title": "Covered class",
+          "x-ms-dataverse-attribute": "ms_coveredclass",
+          "x-ms-dataverse-type": "MultiSelectPicklistType",
+          "x-ms-schema-name": "ms_Coveredclass",
+          "enum": [
+            "VIP",
+            "Silver",
+            "Gold"
+          ],
+          "x-ms-enum-values": [
+            100000000,
+            100000001,
+            100000002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "e16e2f47-9c9c-f111-b8db-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Covered class",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_coveredclassname": {
+          "type": "string",
+          "title": "ms_coveredclassname",
+          "x-ms-dataverse-attribute": "ms_coveredclassname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_coveredclassName",
+          "x-ms-read-only": true
+        },
+        "ms_detailedaddress": {
+          "type": "string",
+          "title": "Detailed address",
+          "x-ms-dataverse-attribute": "ms_detailedaddress",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_Detailedaddress",
+          "maxLength": 100
+        },
+        "ms_distancetoandalusiakm": {
+          "type": "string",
+          "title": "Distance to Andalusia (km)",
+          "x-ms-dataverse-attribute": "ms_distancetoandalusiakm",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "ms_DistancetoAndalusiakm"
+        },
+        "ms_district": {
+          "type": "string",
+          "title": "District",
+          "x-ms-dataverse-attribute": "ms_district",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ms_District"
+        },
+        "ms_districtname": {
+          "type": "string",
+          "title": "ms_districtname",
+          "x-ms-dataverse-attribute": "ms_districtname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_DistrictName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "ms_familiescovered": {
+          "type": "string",
+          "title": "Families covered",
+          "x-ms-dataverse-attribute": "ms_familiescovered",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "ms_Familiescovered",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "f478b27b-32b7-f111-aaac-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Families covered",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "ms_familiescoveredname": {
+          "type": "string",
+          "title": "ms_familiescoveredname",
+          "x-ms-dataverse-attribute": "ms_familiescoveredname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_familiescoveredName",
+          "x-ms-read-only": true
+        },
+        "ms_hospitalclassification": {
+          "type": "string",
+          "title": "Hospital classification",
+          "x-ms-dataverse-attribute": "ms_hospitalclassification",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Hospitalclassification",
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "x-ms-enum-values": [
+            983080000,
+            983080001,
+            983080002,
+            124700001
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "9f8a0ac0-898c-f011-b4cc-6045bdf37b46",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Account Class",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_hospitalclassificationname": {
+          "type": "string",
+          "title": "ms_hospitalclassificationname",
+          "x-ms-dataverse-attribute": "ms_hospitalclassificationname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_hospitalclassificationName",
+          "x-ms-read-only": true
+        },
+        "ms_insurance_company": {
+          "type": "string",
+          "title": "Insurance_Company",
+          "x-ms-dataverse-attribute": "ms_insurance_company",
+          "x-ms-dataverse-type": "MultiSelectPicklistType",
+          "x-ms-schema-name": "ms_Insurance_Company",
+          "enum": [
+            "AXA",
+            "Metlife",
+            "Bupa",
+            "Al Rajhi Takaful",
+            "Arabian Shield",
+            "Cash",
+            "CHARITY",
+            "Globe Med",
+            "Gulf Union",
+            "Isalmic Bank",
+            "Malath",
+            "Med Gulf",
+            "MOH",
+            "N.C.C.I.",
+            "TCS",
+            "TCS-GOSI",
+            "TUCI"
+          ],
+          "x-ms-enum-values": [
+            983080000,
+            983080001,
+            983080002,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006,
+            124700007,
+            124700008,
+            124700009,
+            124700010,
+            124700011,
+            124700012,
+            124700013,
+            124700014
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "15d9d235-8e8c-f011-b4cc-6045bdf37b46",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Insurance Company",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_insurance_companyname": {
+          "type": "string",
+          "title": "ms_insurance_companyname",
+          "x-ms-dataverse-attribute": "ms_insurance_companyname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_insurance_companyName",
+          "x-ms-read-only": true
+        },
+        "ms_investmentappetite": {
+          "type": "string",
+          "title": "Investment appetite",
+          "x-ms-dataverse-attribute": "ms_investmentappetite",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Investmentappetite",
+          "enum": [
+            "High",
+            "Medium",
+            "Low"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "741fefdf-bfa6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Investment appetite",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_investmentappetitename": {
+          "type": "string",
+          "title": "ms_investmentappetitename",
+          "x-ms-dataverse-attribute": "ms_investmentappetitename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_investmentappetiteName",
+          "x-ms-read-only": true
+        },
+        "ms_marketclassification": {
+          "type": "string",
+          "title": "Market classification",
+          "x-ms-dataverse-attribute": "ms_marketclassification",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Marketclassification",
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "x-ms-enum-values": [
+            983080000,
+            983080001,
+            983080002,
+            124700001
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "9f8a0ac0-898c-f011-b4cc-6045bdf37b46",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Account Class",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_marketclassificationname": {
+          "type": "string",
+          "title": "ms_marketclassificationname",
+          "x-ms-dataverse-attribute": "ms_marketclassificationname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_marketclassificationName",
+          "x-ms-read-only": true
+        },
+        "ms_medicalaccounttype": {
+          "type": "string",
+          "title": "Medical account type",
+          "x-ms-dataverse-attribute": "ms_medicalaccounttype",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Medicalaccounttype",
+          "enum": [
+            "Dr Private Clinic",
+            "Dr Center",
+            "Dr Hospital",
+            "Broker",
+            "Other"
+          ],
+          "x-ms-enum-values": [
+            100000000,
+            100000001,
+            100000002,
+            100000003,
+            100000004
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "93cf390a-bca6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Medical account type",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_medicalaccounttypename": {
+          "type": "string",
+          "title": "ms_medicalaccounttypename",
+          "x-ms-dataverse-attribute": "ms_medicalaccounttypename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_medicalaccounttypeName",
+          "x-ms-read-only": true
+        },
+        "ms_numberofcoveredemployees": {
+          "type": "string",
+          "title": "Number of covered employees",
+          "x-ms-dataverse-attribute": "ms_numberofcoveredemployees",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "ms_Numberofcoveredemployees"
+        },
+        "ms_numberofemployees": {
+          "type": "string",
+          "title": "Number of employees",
+          "x-ms-dataverse-attribute": "ms_numberofemployees",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "ms_Numberofemployees"
+        },
+        "ms_opportunityprofiling": {
+          "type": "string",
+          "title": "Opportunity profiling",
+          "x-ms-dataverse-attribute": "ms_opportunityprofiling",
+          "x-ms-dataverse-type": "MultiSelectPicklistType",
+          "x-ms-schema-name": "ms_Opportunityprofiling",
+          "enum": [
+            "Medical",
+            "Corporate",
+            "Community",
+            "Contracted / On-site Clinic"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "a6f9399b-8fb6-f111-aaac-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Opportunity profiling",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_opportunityprofilingname": {
+          "type": "string",
+          "title": "ms_opportunityprofilingname",
+          "x-ms-dataverse-attribute": "ms_opportunityprofilingname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_opportunityprofilingName",
+          "x-ms-read-only": true
+        },
         "ms_payermix": {
           "type": "string",
           "title": "Payer Mix",
@@ -1381,14 +2316,29 @@
           "enum": [
             "Cash",
             "Insured",
-            "Mixed"
+            "Mixed",
+            "Direct",
+            "MOH",
+            "GOSI",
+            "Red Crescent",
+            "Credit"
           ],
           "x-ms-enum-values": [
             100000000,
             100000001,
-            100000002
+            100000002,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005
           ],
           "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
             null,
             null,
             null
@@ -1404,6 +2354,299 @@
           "x-ms-dataverse-attribute": "ms_payermixname",
           "x-ms-dataverse-type": "VirtualType",
           "x-ms-schema-name": "ms_payermixName",
+          "x-ms-read-only": true
+        },
+        "ms_preferredcommunicationchannel": {
+          "type": "string",
+          "title": "Preferred communication channel",
+          "x-ms-dataverse-attribute": "ms_preferredcommunicationchannel",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Preferredcommunicationchannel",
+          "enum": [
+            "Call",
+            "Visit",
+            "Meeting",
+            "Phone call",
+            "WhatsApp",
+            "Email",
+            "SMS",
+            "In person"
+          ],
+          "x-ms-enum-values": [
+            100000000,
+            100000001,
+            100000002,
+            100000003,
+            100000004,
+            100000005,
+            100000006,
+            100000007
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "5548a886-bca6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Preferred communication channel",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_preferredcommunicationchannelname": {
+          "type": "string",
+          "title": "ms_preferredcommunicationchannelname",
+          "x-ms-dataverse-attribute": "ms_preferredcommunicationchannelname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_preferredcommunicationchannelName",
+          "x-ms-read-only": true
+        },
+        "ms_preferredcommunicationtimefrom": {
+          "type": "string",
+          "title": "Preferred communication time from",
+          "x-ms-dataverse-attribute": "ms_preferredcommunicationtimefrom",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "ms_Preferredcommunicationtimefrom"
+        },
+        "ms_preferredcommunicationtimeto": {
+          "type": "string",
+          "title": "Preferred communication time to",
+          "x-ms-dataverse-attribute": "ms_preferredcommunicationtimeto",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "ms_Preferredcommunicationtimeto"
+        },
+        "ms_privilegestatus": {
+          "type": "string",
+          "title": "Privilege status",
+          "x-ms-dataverse-attribute": "ms_privilegestatus",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Privilegestatus",
+          "enum": [
+            "Privileged",
+            "Partially Privileged",
+            "Non-Privileged"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "9151924a-bea6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Privilege status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_privilegestatusname": {
+          "type": "string",
+          "title": "ms_privilegestatusname",
+          "x-ms-dataverse-attribute": "ms_privilegestatusname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_privilegestatusName",
+          "x-ms-read-only": true
+        },
+        "ms_profilestatus": {
+          "type": "string",
+          "title": "Profile status",
+          "x-ms-dataverse-attribute": "ms_profilestatus",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Profilestatus",
+          "enum": [
+            "Draft ",
+            "Pending ",
+            "Validated ",
+            "Rejected"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "439b589a-06c0-f111-aaaf-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Profile status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_profilestatusname": {
+          "type": "string",
+          "title": "ms_profilestatusname",
+          "x-ms-dataverse-attribute": "ms_profilestatusname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_profilestatusName",
+          "x-ms-read-only": true
+        },
+        "ms_profilingcomplete": {
+          "type": "string",
+          "title": "Profiling complete",
+          "x-ms-dataverse-attribute": "ms_profilingcomplete",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "ms_Profilingcomplete",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "69ca5cef-0db8-f111-aaac-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Profiling complete",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "ms_profilingcompletename": {
+          "type": "string",
+          "title": "ms_profilingcompletename",
+          "x-ms-dataverse-attribute": "ms_profilingcompletename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_profilingcompleteName",
+          "x-ms-read-only": true
+        },
+        "ms_referralbehavior": {
+          "type": "string",
+          "title": "Referral behavior",
+          "x-ms-dataverse-attribute": "ms_referralbehavior",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Referralbehavior",
+          "enum": [
+            "Emerging Referrer",
+            "Infrequent Referrer",
+            "Seasonal Referrer",
+            "Consistent Referrer"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "89ef259e-bfa6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Referral behavior",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_referralbehaviorname": {
+          "type": "string",
+          "title": "ms_referralbehaviorname",
+          "x-ms-dataverse-attribute": "ms_referralbehaviorname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_referralbehaviorName",
+          "x-ms-read-only": true
+        },
+        "ms_referraltype": {
+          "type": "string",
+          "title": "Referral type",
+          "x-ms-dataverse-attribute": "ms_referraltype",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Referraltype",
+          "enum": [
+            "Hospital Case",
+            "Private Case",
+            "Local",
+            "Regional",
+            "National"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "eafd5169-bea6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Referral type",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_referraltypename": {
+          "type": "string",
+          "title": "ms_referraltypename",
+          "x-ms-dataverse-attribute": "ms_referraltypename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_referraltypeName",
+          "x-ms-read-only": true
+        },
+        "ms_rejectreasonforcancel": {
+          "type": "string",
+          "title": "Reject reason for cancel",
+          "x-ms-dataverse-attribute": "ms_rejectreasonforcancel",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_Rejectreasonforcancel",
+          "maxLength": 100
+        },
+        "ms_relationshipperiod": {
+          "type": "string",
+          "title": "Relationship period",
+          "x-ms-dataverse-attribute": "ms_relationshipperiod",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_Relationshipperiod",
+          "enum": [
+            "Less than 3 Months",
+            "3–6 Months",
+            "6–12 Months",
+            "1–3 Years",
+            "3–5 Years",
+            "5+ Years"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "78ebc91d-c0a6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Relationship period",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_relationshipperiodname": {
+          "type": "string",
+          "title": "ms_relationshipperiodname",
+          "x-ms-dataverse-attribute": "ms_relationshipperiodname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_relationshipperiodName",
           "x-ms-read-only": true
         },
         "ms_relationshipstatus": {
@@ -1443,6 +2686,189 @@
           "x-ms-schema-name": "ms_relationshipstatusName",
           "x-ms-read-only": true
         },
+        "ms_retiredemployeescovered": {
+          "type": "string",
+          "title": "Retired employees covered",
+          "x-ms-dataverse-attribute": "ms_retiredemployeescovered",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "ms_Retiredemployeescovered",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "339cea6e-32b7-f111-aaac-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Retired employees covered",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "ms_retiredemployeescoveredname": {
+          "type": "string",
+          "title": "ms_retiredemployeescoveredname",
+          "x-ms-dataverse-attribute": "ms_retiredemployeescoveredname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_retiredemployeescoveredName",
+          "x-ms-read-only": true
+        },
+        "ms_servicelinescovered": {
+          "type": "string",
+          "title": "Service lines covered",
+          "x-ms-dataverse-attribute": "ms_servicelinescovered",
+          "x-ms-dataverse-type": "MultiSelectPicklistType",
+          "x-ms-schema-name": "ms_Servicelinescovered",
+          "enum": [
+            "PICU",
+            "Surgical",
+            "ICU",
+            "Cardiology",
+            "Orthopedic",
+            "General Surgery",
+            "Obs/Gyn"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "c444796f-c8a6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Service lines covered",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_servicelinescoveredname": {
+          "type": "string",
+          "title": "ms_servicelinescoveredname",
+          "x-ms-dataverse-attribute": "ms_servicelinescoveredname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_servicelinescoveredName",
+          "x-ms-read-only": true
+        },
+        "ms_servicesaccount": {
+          "type": "string",
+          "title": "Services Account",
+          "x-ms-dataverse-attribute": "ms_servicesaccount",
+          "x-ms-dataverse-type": "MultiSelectPicklistType",
+          "x-ms-schema-name": "ms_ServicesAccount",
+          "enum": [
+            "Examination",
+            "Rad",
+            "Closed Unit",
+            "Lab",
+            "ER",
+            "Pharmacy"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "d62934dd-60ab-f111-aaac-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Services Account",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_servicesaccountname": {
+          "type": "string",
+          "title": "ms_servicesaccountname",
+          "x-ms-dataverse-attribute": "ms_servicesaccountname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_servicesaccountName",
+          "x-ms-read-only": true
+        },
+        "ms_specialty_text": {
+          "type": "string",
+          "title": "Specialty_Text",
+          "x-ms-dataverse-attribute": "ms_specialty_text",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_Specialty_Text",
+          "maxLength": 4000
+        },
+        "ms_strategic": {
+          "type": "string",
+          "title": "Strategic",
+          "x-ms-dataverse-attribute": "ms_strategic",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "ms_Strategic",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "a1a25405-78ab-f111-aaac-00224882d001",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Strategic",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "ms_strategicname": {
+          "type": "string",
+          "title": "ms_strategicname",
+          "x-ms-dataverse-attribute": "ms_strategicname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_strategicName",
+          "x-ms-read-only": true
+        },
+        "ms_subspecialty": {
+          "type": "string",
+          "title": "Subspecialty",
+          "x-ms-dataverse-attribute": "ms_subspecialty",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ms_Subspecialty"
+        },
+        "ms_subspecialty_text": {
+          "type": "string",
+          "title": "Sub-specialty_Text",
+          "x-ms-dataverse-attribute": "ms_subspecialty_text",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_Subspecialty_Text",
+          "maxLength": 4000
+        },
+        "ms_subspecialtyname": {
+          "type": "string",
+          "title": "ms_subspecialtyname",
+          "x-ms-dataverse-attribute": "ms_subspecialtyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ms_SubspecialtyName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
         "ms_targetdiagnosis": {
           "type": "string",
           "title": "Target Diagnosis",
@@ -1450,6 +2876,168 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "ms_TargetDiagnosis",
           "maxLength": 100
+        },
+        "ms_targetdiagnosischoice": {
+          "type": "string",
+          "title": "Target Diagnosis choice",
+          "x-ms-dataverse-attribute": "ms_targetdiagnosischoice",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_TargetDiagnosischoice",
+          "enum": [
+            "Acute Coronary Syndrome, MI & Hypertensive Cardiac Conditions",
+            "Arrhythmia, Electrophysiology & Syncope",
+            "Heart Failure & Pulmonary Oedema",
+            "Valvular & Structural Heart Disease (CABG/PCI/MVD)",
+            "Vascular Disease (PAD, DVT, PE, Aneurysm, Varicose Veins)",
+            "Stroke & Cerebrovascular Disease",
+            "Neurological Disorders (Epilepsy, MS, Neuropathy)",
+            "Head Trauma & Neurosurgical Conditions",
+            "Spine Disorders",
+            "Fractures - Upper Limb",
+            "Fractures - Lower Limb & Pelvis",
+            "Trauma, RTA & Multiple Injuries",
+            "Acute Abdomen & GI Surgical Conditions",
+            "Hernia",
+            "Testicular Torsion",
+            "Ovarian Cyst Torsion",
+            "Anorectal Disease",
+            "Hepatobiliary & Pancreatic Disease",
+            "GI Bleeding",
+            "Myomectomy & Hysterectomy",
+            "C.S",
+            "Normal Labour",
+            "Renal Disease & Electrolyte Disorders",
+            "Kidney & Renal Stones & Obstructions",
+            "Diabetes & Metabolic Emergencies",
+            "Sinusitis",
+            "Tonsilitis",
+            "Thyroid & Other Endocrine Disorders",
+            "Respiratory Disease",
+            "Infectious Disease",
+            "Hematological Disorders",
+            "Critical Care / ICU Management (Multi-organ)"
+          ],
+          "x-ms-enum-values": [
+            124700000,
+            124700001,
+            124700002,
+            124700003,
+            124700004,
+            124700005,
+            124700006,
+            124700007,
+            124700008,
+            124700009,
+            124700010,
+            124700011,
+            124700012,
+            124700013,
+            124700014,
+            124700015,
+            124700016,
+            124700017,
+            124700018,
+            124700019,
+            124700020,
+            124700021,
+            124700022,
+            124700023,
+            124700024,
+            124700025,
+            124700026,
+            124700027,
+            124700028,
+            124700029,
+            124700030,
+            124700031
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "5c78d6af-bda6-f111-b8de-00224882d001",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Target Diagnosis",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_targetdiagnosischoicename": {
+          "type": "string",
+          "title": "ms_targetdiagnosischoicename",
+          "x-ms-dataverse-attribute": "ms_targetdiagnosischoicename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_targetdiagnosischoiceName",
+          "x-ms-read-only": true
+        },
+        "ms_taxonomyapproval": {
+          "type": "string",
+          "title": "taxonomy Approval",
+          "x-ms-dataverse-attribute": "ms_taxonomyapproval",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "ms_taxonomyApproval",
+          "enum": [
+            "Approved",
+            "Rejected",
+            "Pending"
+          ],
+          "x-ms-enum-values": [
+            620930000,
+            620930001,
+            620930002
+          ],
+          "Color": [
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "d9f7c992-9ae1-f011-8407-7ced8d0cef8a",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Approval Status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "ms_taxonomyapprovalname": {
+          "type": "string",
+          "title": "ms_taxonomyapprovalname",
+          "x-ms-dataverse-attribute": "ms_taxonomyapprovalname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "ms_taxonomyapprovalName",
+          "x-ms-read-only": true
+        },
+        "ms_visittime": {
+          "type": "string",
+          "title": "Visit time",
+          "x-ms-dataverse-attribute": "ms_visittime",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "ms_Visittime"
         },
         "overriddencreatedon": {
           "type": "string",
@@ -1527,6 +3115,13 @@
           "x-ms-dataverse-type": "LookupType",
           "x-ms-schema-name": "OwningUser",
           "x-ms-read-only": true
+        },
+        "pm_planningsequence": {
+          "type": "string",
+          "title": "Planning order (used in planning)",
+          "x-ms-dataverse-attribute": "pm_planningsequence",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "pm_PlanningSequence"
         },
         "statecode": {
           "type": "string",

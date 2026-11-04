@@ -65,18 +65,28 @@ export function isOwnActivity(user: CurrentUser | null, a: ActivityRow): boolean
   return !!user && (a.agentIds.some((id) => user.agentIds.includes(id)) || a.employeeIds.some((id) => user.myEmployeeIds.has(id)));
 }
 
+/** Role on one thread. 'viewer' = a manager looking at a week plan someone
+ *  else created: they can read it but don't act on it or get its actions. */
+export type ThreadRole = UserRole | 'viewer';
+
+export function isPlanCreator(user: CurrentUser | null, p: PlanRow): boolean {
+  return !!user?.systemUserId && !!p.createdById && user.systemUserId.toLowerCase() === p.createdById.toLowerCase();
+}
+
 /** A user can be an agent and a manager at once: on their own rows they act as
- *  the Agent (confirm / recommend, no self-review), on everyone else's as the Manager. */
-export function roleOn(user: CurrentUser | null, t: ThreadRef): UserRole {
+ *  the Agent (confirm / recommend, no self-review), on everyone else's as the
+ *  Manager — except week plans, whose manager is whoever created the target. */
+export function roleOn(user: CurrentUser | null, t: ThreadRef): ThreadRole {
   if (!user) return 'agent';
   const own = t.kind === 'plan' ? isOwnPlan(user, t.row) : isOwnActivity(user, t.row);
   if (own && user.isAgent) return 'agent';
+  if (t.kind === 'plan' && user.role === 'manager' && t.row.createdById && !isPlanCreator(user, t.row)) return 'viewer';
   return user.role;
 }
 
 /** Sent by the signed-in user — by sender id when the lookup is set, else by
  *  the role they hold on that thread. */
-export function isFromMe(m: Message, myIds: string[], threadRole: UserRole): boolean {
+export function isFromMe(m: Message, myIds: string[], threadRole: ThreadRole): boolean {
   if (m.senderId) return myIds.some((id) => id.toLowerCase() === m.senderId.toLowerCase());
   return m.senderRole === (threadRole === 'agent' ? ROLE_AGENT : ROLE_MANAGER);
 }
@@ -92,7 +102,8 @@ export function groupMessages(messages: Message[]): Map<string, Message[]> {
   return map;
 }
 
-export function unreadFor(thread: Message[], myIds: string[], role: UserRole): Message[] {
+export function unreadFor(thread: Message[], myIds: string[], role: ThreadRole): Message[] {
+  if (role === 'viewer') return [];
   return thread.filter((m) => !m.isRead && !m.pending && m.type !== MSG_SYSTEM_EVENT && !isFromMe(m, myIds, role));
 }
 
@@ -145,7 +156,7 @@ export function computeActions(
   rows: { plans: PlanRow[]; activities: ActivityRow[] },
   messagesByThread: Map<string, Message[]>,
   myIds: string[],
-  roleFor: (t: ThreadRef) => UserRole
+  roleFor: (t: ThreadRef) => ThreadRole
 ): ActionSummary {
   const items: ActionItem[] = [];
   const toReview: ActivityRow[] = [];

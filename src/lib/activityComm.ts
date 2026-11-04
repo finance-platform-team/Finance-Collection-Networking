@@ -90,6 +90,10 @@ export interface PlanRow {
   employeeId: string;
   ownerName: string;
   achievementId: string;
+  /** systemuser who created the target (the plan week, else its breakdown) —
+   *  the only manager who acts on this row. Empty on rows with no creator. */
+  createdById: string;
+  createdByName: string;
 }
 
 export interface ActivityRow {
@@ -248,10 +252,13 @@ async function bindLookups(table: string, id: string, binds: Record<string, stri
 }
 
 // ---- reads ----
-let cachedKpiId: Promise<string> | null = null;
-function resolveKpiId(): Promise<string> {
-  if (!cachedKpiId) {
-    cachedKpiId = (async () => {
+// More than one active row can match, and this list is unordered while
+// VisitPlan.tsx picks the newest — so a single .find() could land on a
+// different KPI than the plan was created under. Keep all of them.
+let cachedKpiIds: Promise<string[]> | null = null;
+function resolveKpiIds(): Promise<string[]> {
+  if (!cachedKpiIds) {
+    cachedKpiIds = (async () => {
       const rows = await fetchAll<{ strategy_kpisid: string; strategy_newcolumn?: string }>(
         (skipToken) =>
           Strategy_kpisesService.getAll({
@@ -262,19 +269,19 @@ function resolveKpiId(): Promise<string> {
           }),
         'Could not load KPIs.'
       );
-      const kpi = rows.find(
+      const kpis = rows.filter(
         (k) =>
           formattedValue(k, '_strategy_function_value').trim().toLowerCase() === DEFAULT_KPI_FUNCTION.toLowerCase() &&
           formattedValue(k, '_strategy_department_value').trim().toLowerCase() === DEFAULT_KPI_DEPARTMENT.toLowerCase()
       );
-      if (!kpi) throw new Error(`KPI "${DEFAULT_KPI_NAME}" (${DEFAULT_KPI_FUNCTION} / ${DEFAULT_KPI_DEPARTMENT}) not found.`);
-      return kpi.strategy_kpisid;
+      if (!kpis.length) throw new Error(`KPI "${DEFAULT_KPI_NAME}" (${DEFAULT_KPI_FUNCTION} / ${DEFAULT_KPI_DEPARTMENT}) not found.`);
+      return kpis.map((k) => k.strategy_kpisid);
     })();
-    cachedKpiId.catch(() => {
-      cachedKpiId = null;
+    cachedKpiIds.catch(() => {
+      cachedKpiIds = null;
     });
   }
-  return cachedKpiId;
+  return cachedKpiIds;
 }
 
 const WEEK_SELECT = [
@@ -288,6 +295,7 @@ const WEEK_SELECT = [
   'cfm_confirmedon',
   '_cfm_confirmedby_value',
   '_cfm_kpiachievementbreakdown_value',
+  '_createdby_value',
 ];
 const VISIT_SELECT = [
   'cr301_visitid',
@@ -333,7 +341,8 @@ function toMessage(r: Record<string, unknown>): Message {
 }
 
 export async function loadMonth(year: number, month: number, agents: AgentRef[], employeeNames: Map<string, string>): Promise<MonthData> {
-  const kpiId = await resolveKpiId();
+  const kpiIds = await resolveKpiIds();
+  const kpiFilter = kpiIds.map((id) => `_pm_kpi_value eq ${id}`).join(' or ');
   const range = monthRange(year, month);
 
   // 1) The month's achievements + the month's activities (independent).
@@ -342,7 +351,7 @@ export async function loadMonth(year: number, month: number, agents: AgentRef[],
       (skipToken) =>
         Pm_kpiachievmentsService.getAll({
           select: ['pm_kpiachievmentid'],
-          filter: `_pm_kpi_value eq ${kpiId} and pm_month eq ${month} and pm_year eq ${year} and statecode eq 0`,
+          filter: `(${kpiFilter}) and pm_month eq ${month} and pm_year eq ${year} and statecode eq 0`,
           maxPageSize: 5000,
           skipToken,
         }),
@@ -365,12 +374,12 @@ export async function loadMonth(year: number, month: number, agents: AgentRef[],
   // 2) Breakdowns (task owners) for those achievements, and every message
   //    stamped with one of them (both thread types carry cfm_kpiachievement).
   const [brkRows, messageRows] = await Promise.all([
-    fetchByIds<{ stf_kpiachievmentbreakdownid: string; _stf_total_value?: string; _stf_employee_value?: string }>(
+    fetchByIds<{ stf_kpiachievmentbreakdownid: string; _stf_total_value?: string; _stf_employee_value?: string; _createdby_value?: string }>(
       achIds,
       '_stf_total_value',
       (filter, skipToken) =>
         Stf_kpiachievmentbreakdownsService.getAll({
-          select: ['stf_kpiachievmentbreakdownid', '_stf_total_value', '_stf_employee_value'],
+          select: ['stf_kpiachievmentbreakdownid', '_stf_total_value', '_stf_employee_value', '_createdby_value'],
           filter,
           maxPageSize: 5000,
           skipToken,
@@ -450,6 +459,8 @@ export async function loadMonth(year: number, month: number, agents: AgentRef[],
       employeeId,
       ownerName: employeeNames.get(employeeId) || formattedValue(brk, '_stf_employee_value') || '(task owner)',
       achievementId: brk?._stf_total_value || '',
+      createdById: String(w._createdby_value || brk?._createdby_value || ''),
+      createdByName: formattedValue(w, '_createdby_value') || formattedValue(brk, '_createdby_value'),
     };
   });
   plans.sort((a, b) => a.ownerName.localeCompare(b.ownerName) || a.weekNumber - b.weekNumber);

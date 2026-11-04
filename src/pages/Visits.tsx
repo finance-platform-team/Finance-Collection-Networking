@@ -15,6 +15,7 @@ import type { Cfm_collectionplanweeks } from '../generated/models/Cfm_collection
 import type { Strategy_kpises } from '../generated/models/Strategy_kpisesModel';
 import { operationErrorMessage } from '../lib/errors';
 import { fetchAll } from '../lib/dataverse';
+import { COLLECTION_ACCOUNTS_FILTER } from '../lib/accountCategory';
 import { visitStatusClass } from '../lib/visitStatus';
 import { escapeForCsv, downloadCsv } from '../lib/csvExport';
 import { fetchStakeholdersByAccount, initials } from '../lib/stakeholders';
@@ -135,12 +136,16 @@ async function adjustVisitPlanActual(agentName: string, employeeId: string, refe
         }),
       'Could not load KPIs.'
     );
-    const visitsKpi = kpiRows.find(isVisitsKpi);
-    if (!visitsKpi) return { status: 'no-kpi', agentName };
+    // More than one active row can pass isVisitsKpi, and this list is unordered
+    // while VisitPlan.tsx picks the newest — so a plain .find() could land on a
+    // different KPI than the plan was created under. Search all of them.
+    const visitsKpis = kpiRows.filter(isVisitsKpi);
+    if (!visitsKpis.length) return { status: 'no-kpi', agentName };
+    const kpiFilter = visitsKpis.map((k) => `_pm_kpi_value eq ${k.strategy_kpisid}`).join(' or ');
 
     const achievements = await Pm_kpiachievmentsService.getAll({
       select: ['pm_kpiachievmentid'],
-      filter: `_pm_kpi_value eq ${visitsKpi.strategy_kpisid} and pm_month eq ${month} and pm_year eq ${year} and statecode eq 0`,
+      filter: `(${kpiFilter}) and pm_month eq ${month} and pm_year eq ${year} and statecode eq 0`,
       maxPageSize: 5000,
     });
     const achIds = new Set((achievements.success ? achievements.data : undefined)?.map((a) => a.pm_kpiachievmentid) || []);
@@ -213,9 +218,6 @@ function describeAdjustOutcome(o: AdjustOutcome): string | null {
       return `${o.agentName}: ${o.message}`;
   }
 }
-
-const TYPE_INSURANCE = 983080002; // cr301_accounttype — Insurance (same value used on the Accounts page)
-const TYPE_DIRECT = 766340001; // cr301_accounttype — Direct (same value used on the Accounts page)
 
 const VISIT_TYPE_SINGLE: Cr301_visitscr301_visittype = 983080000; // 'Single Visit'
 const VISIT_TYPE_DOUBLE: Cr301_visitscr301_visittype = 983080001; // 'Double Visit'
@@ -569,7 +571,7 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       const [accResult, agentResult, visitResult] = await Promise.all([
         Cr301_accountsService.getAll({
           select: ['cr301_accountid', 'cr301_acccountname', 'cr301_accountcode', 'cr301_country'],
-          filter: `cr301_accounttype eq ${TYPE_INSURANCE} or cr301_accounttype eq ${TYPE_DIRECT}`,
+          filter: COLLECTION_ACCOUNTS_FILTER,
           orderBy: ['cr301_acccountname'],
         }),
         Cr301_agentsService.getAll({
@@ -954,8 +956,13 @@ export default function VisitsPage({ region }: VisitsPageProps) {
       // +1's land as only +1 overall. Sequential awaits close that window —
       // each call's read only ever sees the previous call's write.
       const adjustNotes: string[] = [];
-      const referenceDateIso = editId ? editOriginal?.createdon || '' : result.data?.createdon || '';
-      if (referenceDateIso) {
+      // The create response doesn't always carry createdon — when it's missing,
+      // "now" is the creation timestamp to within the round-trip, so use that
+      // rather than silently skipping the adjustment.
+      const referenceDateIso = editId ? editOriginal?.createdon || '' : result.data?.createdon || new Date().toISOString();
+      if (!referenceDateIso) {
+        adjustNotes.push('the activity has no logged date to match a plan week');
+      } else {
         const toAdjustTargets = (ids: string[]) =>
           ids
             .filter(Boolean)

@@ -92,6 +92,18 @@
 .sh-card-act button:hover{color:var(--gold);background:var(--goldbg)}
 .sh-card-act button.sh-del:hover{color:var(--bad);background:var(--badbg)}
 .sh-card-act button:disabled{opacity:.5;cursor:default}
+.sh-inactive{margin-top:18px;border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.sh-inactive-toggle{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;background:transparent;border:none;
+  color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;padding:4px 0}
+.sh-inactive-toggle:hover{color:var(--gold)}
+.sh-inactive-note{font-size:12.5px;color:var(--muted)}
+.sh-card-inactive{opacity:.7;background:transparent}
+.sh-card-inactive:hover{opacity:1}
+.sh-activate{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;background:var(--okbg);color:var(--ok);border:none;
+  border-radius:7px;padding:4px 9px;font-size:11.5px;font-weight:600;cursor:pointer}
+.sh-activate:disabled{opacity:.5;cursor:default}
+.sh-inactive-badge{font-family:'Outfit',sans-serif;font-weight:600;font-size:10.5px;padding:2px 8px;border-radius:999px;
+  background:var(--line);color:var(--muted)}
 .sh-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px}
 .sh-role{font-size:12.5px;color:var(--muted)}
 .sh-dept{font-family:'Outfit',sans-serif;font-weight:600;font-size:10.5px;padding:2px 8px;border-radius:999px}

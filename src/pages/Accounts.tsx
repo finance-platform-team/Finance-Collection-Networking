@@ -3,7 +3,19 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { getClient } from '@microsoft/power-apps/data';
 import { dataSourcesInfo } from '../../.power/schemas/appschemas/dataSourcesInfo';
 import { Cr301_accountsService } from '../generated/services/Cr301_accountsService';
-import type { Cr301_accountsBase, Cr301_accountscr301_accounttype, Cr301_accountscr301_country } from '../generated/models/Cr301_accountsModel';
+import type {
+  Cr301_accountsBase,
+  Cr301_accountscr301_accounttype,
+  Cr301_accountscr301_country,
+  Cr301_accountscr603_accountcategory,
+} from '../generated/models/Cr301_accountsModel';
+import {
+  CATEGORY_DIRECT,
+  CATEGORY_INSURANCE,
+  COLLECTION_ACCOUNTS_FILTER,
+  LEGACY_TYPE_DIRECT,
+  LEGACY_TYPE_INSURANCE,
+} from '../lib/accountCategory';
 import { Cr301_accounttypesService } from '../generated/services/Cr301_accounttypesService';
 import { Cr301_visitsService } from '../generated/services/Cr301_visitsService';
 import { Cr301_agentsService } from '../generated/services/Cr301_agentsService';
@@ -23,12 +35,45 @@ const NO_STAKEHOLDERS: Stakeholder[] = [];
 /** How many avatars the Stakeholders cell shows before collapsing the rest into "+N". */
 const AVATAR_LIMIT = 3;
 
-const TYPE_INSURANCE: Cr301_accountscr301_accounttype = 983080002;
-const TYPE_DIRECT: Cr301_accountscr301_accounttype = 766340001;
-const ACCOUNT_TYPE_OPTIONS: { value: Cr301_accountscr301_accounttype; label: string }[] = [
-  { value: TYPE_INSURANCE, label: 'Insurance' },
-  { value: TYPE_DIRECT, label: 'Direct' },
+/** cr603_accountcategory — the Account form only offers these two. */
+const ACCOUNT_CATEGORY_OPTIONS: { value: Cr301_accountscr603_accountcategory; label: string }[] = [
+  { value: CATEGORY_INSURANCE, label: 'Insurance' },
+  { value: CATEGORY_DIRECT, label: 'Direct' },
 ];
+
+/** cr301_accounttype's global option set, minus Insurance/Direct (those now live on
+ * Account Category). Labels are the option set's own display names. */
+const ACCOUNT_TYPE_OPTIONS: { value: Cr301_accountscr301_accounttype; label: string }[] = [
+  { value: 983080000, label: 'Community' },
+  { value: 983080001, label: 'Medical' },
+  { value: 989230001, label: 'Academy' },
+  { value: 989230002, label: 'Africa' },
+  { value: 989230003, label: 'Investment' },
+  { value: 989230004, label: 'Finance' },
+  { value: 989230005, label: 'AHC' },
+  { value: 989230006, label: 'Home Care' },
+  { value: 989230007, label: 'VD' },
+  { value: 989230008, label: 'Ventures' },
+  { value: 124700001, label: 'Community Cash Card' },
+  { value: 124700002, label: 'Community Cash Account' },
+  { value: 124700003, label: 'Egypt Medical Tourism' },
+  { value: 124700004, label: 'Medical Tourism' },
+  { value: 124700005, label: 'Corporate Sales Check-up' },
+  { value: 124700006, label: 'Community Cash Offers' },
+  { value: 124700007, label: 'Cash deals' },
+  { value: 124700008, label: 'Cash' },
+  { value: 124700009, label: 'Home Care Cash' },
+  { value: 124700010, label: 'Credit' },
+  { value: 124700011, label: 'Cash Account' },
+  { value: 124700012, label: 'Other' },
+  { value: 124700013, label: 'KSA · District BD' },
+  { value: 983080003, label: 'Industry' },
+  { value: 983080004, label: 'Managerial' },
+];
+
+function isLegacyCategoryType(v: number | null | undefined): boolean {
+  return v === LEGACY_TYPE_INSURANCE || v === LEGACY_TYPE_DIRECT;
+}
 
 const REGION_EGYPT: Cr301_accountscr301_country = 983080000;
 const REGION_KSA: Cr301_accountscr301_country = 983080001;
@@ -70,8 +115,11 @@ interface AccountRow {
   code: string;
   clsId: string;
   cls: string;
-  type: number;
+  /** cr301_accounttype; null when unset or still a legacy Insurance/Direct value. */
+  type: number | null;
   typeName: string;
+  category: number;
+  categoryName: string;
   region: number | null;
   regionName: string;
   target: number;
@@ -154,6 +202,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
   const [query, setQuery] = useState('');
   const [clsFilter, setClsFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [visitDateFrom, setVisitDateFrom] = useState(() => currentMonthRange().from);
   const [visitDateTo, setVisitDateTo] = useState(() => currentMonthRange().to);
   const [page, setPage] = useState(1);
@@ -164,7 +213,8 @@ export default function AccountsPage({ region }: AccountsPageProps) {
   const [formName, setFormName] = useState('');
   const [formCode, setFormCode] = useState('');
   const [formClsId, setFormClsId] = useState('');
-  const [formAccountType, setFormAccountType] = useState(String(TYPE_INSURANCE));
+  const [formAccountType, setFormAccountType] = useState('');
+  const [formCategory, setFormCategory] = useState(String(CATEGORY_INSURANCE));
   const [formRegion, setFormRegion] = useState(String(REGION_KSA));
   const [formTarget, setFormTarget] = useState('2');
   const [formError, setFormError] = useState('');
@@ -307,11 +357,12 @@ export default function AccountsPage({ region }: AccountsPageProps) {
             'cr301_acccountname',
             'cr301_accountcode',
             'cr301_accounttype',
+            'cr603_accountcategory',
             'cr301_country',
             'cfm_visittargetcollection',
             '_cr301_accountclassification_value',
           ],
-          filter: `cr301_accounttype eq ${TYPE_INSURANCE} or cr301_accounttype eq ${TYPE_DIRECT}`,
+          filter: COLLECTION_ACCOUNTS_FILTER,
           orderBy: ['createdon desc'],
         }),
         Cr301_visitsService.getAll({
@@ -333,19 +384,28 @@ export default function AccountsPage({ region }: AccountsPageProps) {
           actualByAccount.set(accId, (actualByAccount.get(accId) || 0) + 1);
         });
       }
-      const rows: AccountRow[] = (result.data || []).map((r) => ({
-        id: r.cr301_accountid,
-        name: r.cr301_acccountname || '—',
-        code: r.cr301_accountcode || '—',
-        clsId: r._cr301_accountclassification_value || '',
-        cls: formattedValue(r, '_cr301_accountclassification_value').trim().toUpperCase().charAt(0),
-        type: r.cr301_accounttype ?? TYPE_INSURANCE,
-        typeName: (formattedValue(r, 'cr301_accounttype') || 'Insurance').trim(),
-        region: r.cr301_country ?? null,
-        regionName: formattedValue(r, 'cr301_country').trim(),
-        target: r.cfm_visittargetcollection ?? 0,
-        actual: actualByAccount.get(r.cr301_accountid) || 0,
-      }));
+      const rows: AccountRow[] = (result.data || []).map((r) => {
+        // Older accounts may still carry Insurance/Direct on cr301_accounttype —
+        // treat that as the type not chosen yet.
+        const rawType = r.cr301_accounttype ?? null;
+        const legacy = isLegacyCategoryType(rawType);
+        const category = r.cr603_accountcategory ?? CATEGORY_INSURANCE;
+        return {
+          id: r.cr301_accountid,
+          name: r.cr301_acccountname || '—',
+          code: r.cr301_accountcode || '—',
+          clsId: r._cr301_accountclassification_value || '',
+          cls: formattedValue(r, '_cr301_accountclassification_value').trim().toUpperCase().charAt(0),
+          type: legacy ? null : rawType,
+          typeName: legacy ? '' : formattedValue(r, 'cr301_accounttype').trim(),
+          category,
+          categoryName: ACCOUNT_CATEGORY_OPTIONS.find((c) => c.value === category)?.label || '',
+          region: r.cr301_country ?? null,
+          regionName: formattedValue(r, 'cr301_country').trim(),
+          target: r.cfm_visittargetcollection ?? 0,
+          actual: actualByAccount.get(r.cr301_accountid) || 0,
+        };
+      });
       setAccounts(rows);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
@@ -398,17 +458,18 @@ export default function AccountsPage({ region }: AccountsPageProps) {
       if (q && !`${a.name} ${a.code}`.toLowerCase().includes(q)) return false;
       if (clsFilter && a.cls !== clsFilter) return false;
       if (typeFilter && String(a.type) !== typeFilter) return false;
+      if (categoryFilter && String(a.category) !== categoryFilter) return false;
       if (shFilter) {
         const has = (stakeholdersByAccount.get(a.id)?.length || 0) > 0;
         if (shFilter === 'with' ? !has : has) return false;
       }
       return true;
     });
-  }, [regionRows, query, clsFilter, typeFilter, shFilter, stakeholdersByAccount]);
+  }, [regionRows, query, clsFilter, typeFilter, categoryFilter, shFilter, stakeholdersByAccount]);
 
   useEffect(() => {
     setPage(1);
-  }, [query, clsFilter, typeFilter, shFilter, region]);
+  }, [query, clsFilter, typeFilter, categoryFilter, shFilter, region]);
 
   // Coverage is measured over the region's accounts (not the stakeholder filter's
   // own result), so clicking the KPI to filter doesn't change the number it shows.
@@ -553,7 +614,8 @@ export default function AccountsPage({ region }: AccountsPageProps) {
       setFormName(row.name === '—' ? '' : row.name);
       setFormCode(row.code === '—' ? '' : row.code);
       setFormClsId(row.clsId || '');
-      setFormAccountType(String(row.type || TYPE_INSURANCE));
+      setFormAccountType(row.type != null ? String(row.type) : '');
+      setFormCategory(String(row.category));
       setFormRegion(String(row.region || REGION_KSA));
       setFormTarget(String(row.target || 0));
     } else {
@@ -561,7 +623,8 @@ export default function AccountsPage({ region }: AccountsPageProps) {
       setFormName('');
       setFormCode('');
       setFormClsId('');
-      setFormAccountType(String(TYPE_INSURANCE));
+      setFormAccountType('');
+      setFormCategory(String(CATEGORY_INSURANCE));
       setFormRegion(String(region === 'EG' ? REGION_EGYPT : REGION_KSA));
       setFormTarget('2');
     }
@@ -624,6 +687,10 @@ export default function AccountsPage({ region }: AccountsPageProps) {
       setFormError('Account Type is required.');
       return;
     }
+    if (!formCategory) {
+      setFormError('Account Category is required.');
+      return;
+    }
     const target = parseInt(formTarget, 10);
     if (!Number.isFinite(target) || target < 0) {
       setFormError('Account Target Visit must be 0 or more.');
@@ -637,7 +704,8 @@ export default function AccountsPage({ region }: AccountsPageProps) {
       const body: Partial<Omit<Cr301_accountsBase, 'cr301_accountid'>> = {
         cr301_acccountname: name,
         cr301_accountcode: code,
-        cr301_accounttype: (parseInt(formAccountType, 10) || TYPE_INSURANCE) as Cr301_accountscr301_accounttype,
+        cr301_accounttype: parseInt(formAccountType, 10) as Cr301_accountscr301_accounttype,
+        cr603_accountcategory: (parseInt(formCategory, 10) || CATEGORY_INSURANCE) as Cr301_accountscr603_accountcategory,
         cr301_country: (parseInt(formRegion, 10) || REGION_KSA) as Cr301_accountscr301_country,
         cfm_visittargetcollection: target,
       } as Partial<Omit<Cr301_accountsBase, 'cr301_accountid'>>;
@@ -689,12 +757,13 @@ export default function AccountsPage({ region }: AccountsPageProps) {
   }
 
   function exportCsv() {
-    const header = ['Account Name', 'Account Code', 'Classification', 'Type', 'Region', 'Stakeholders', 'Target Visit', 'Actual Visits'];
+    const header = ['Account Name', 'Account Code', 'Classification', 'Category', 'Type', 'Region', 'Stakeholders', 'Target Visit', 'Actual Visits'];
     const rows = view.map((a) => [
       a.name,
       a.code === '—' ? '0' : a.code,
       a.cls,
-      a.typeName,
+      a.categoryName,
+      a.typeName || '—',
       a.regionName || '—',
       (stakeholdersByAccount.get(a.id) || NO_STAKEHOLDERS).map((s) => s.name).join('; '),
       a.target,
@@ -828,6 +897,14 @@ export default function AccountsPage({ region }: AccountsPageProps) {
               <option value="B">Class B</option>
               <option value="C">Class C</option>
             </select>
+            <select className="acc-f" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+              <option value="">All Categories</option>
+              {ACCOUNT_CATEGORY_OPTIONS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
             <select className="acc-f" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
               <option value="">All Types</option>
               {ACCOUNT_TYPE_OPTIONS.map((t) => (
@@ -871,6 +948,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                 <th>Account Name</th>
                 <th>Account Code</th>
                 <th>Classification</th>
+                <th>Category</th>
                 <th>Type</th>
                 <th>Region</th>
                 <th>Stakeholders</th>
@@ -881,7 +959,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 9 }).map((__, j) => (
+                    {Array.from({ length: 10 }).map((__, j) => (
                       <td key={j}>
                         <div className="acc-skel"></div>
                       </td>
@@ -890,7 +968,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                 ))
               ) : loadError ? (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={10}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-triangle-exclamation" />
                       Could not load accounts.
@@ -901,7 +979,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                 </tr>
               ) : pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={10}>
                     <div className="acc-state">
                       <Icon className="fa-solid fa-inbox" />
                       No accounts match your filters.
@@ -944,9 +1022,10 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                         <td>
                           <span className="acc-typ">
                             <Icon className="fa-solid fa-shield-heart" style={{ color: 'var(--gold)', fontSize: 12 }} />
-                            {a.typeName}
+                            {a.categoryName}
                           </span>
                         </td>
+                        <td>{a.typeName || '—'}</td>
                         <td>{a.regionName || '—'}</td>
                         <td className="sh-cell" onClick={(e) => e.stopPropagation()}>
                           {stakeholdersState === 'loading' ? (
@@ -1010,7 +1089,7 @@ export default function AccountsPage({ region }: AccountsPageProps) {
                       </tr>
                       {expanded && (
                         <tr className="acc-expand-row">
-                          <td colSpan={9}>
+                          <td colSpan={10}>
                             {visitState === 'loading' ? (
                               <div className="acc-state">
                                 <Icon className="fa-solid fa-spinner fa-spin" /> Loading visits…
@@ -1160,9 +1239,22 @@ export default function AccountsPage({ region }: AccountsPageProps) {
           </div>
           <div className="acc-fld">
             <label>
+              Account Category <span className="dm-req">*</span>
+            </label>
+            <select value={formCategory} onChange={(e) => setFormCategory(e.target.value)}>
+              {ACCOUNT_CATEGORY_OPTIONS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="acc-fld">
+            <label>
               Account Type <span className="dm-req">*</span>
             </label>
             <select value={formAccountType} onChange={(e) => setFormAccountType(e.target.value)}>
+              <option value="">— Select type —</option>
               {ACCOUNT_TYPE_OPTIONS.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}

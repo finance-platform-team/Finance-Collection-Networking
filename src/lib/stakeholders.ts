@@ -1,5 +1,6 @@
 import { Cr301_contactpersonsService } from '../generated/services/Cr301_contactpersonsService';
 import type {
+  Cr301_contactpersons,
   Cr301_contactpersonsBase,
   Cr301_contactpersonscr301_department,
   Cr301_contactpersonsms_role,
@@ -64,30 +65,36 @@ function labelOf(options: { value: number; label: string }[], value: number | nu
   return options.find((o) => o.value === value)?.label || '';
 }
 
+const STAKEHOLDER_SELECT = ['cr301_contactpersonid', 'cr301_newcolumn', 'ms_role', 'cr301_department', 'cr301_phone', 'cr301_email', ACCOUNT_VALUE_FIELD];
+
+function toStakeholder(r: Cr301_contactpersons): Stakeholder {
+  const raw = r as unknown as Record<string, unknown>;
+  return {
+    id: r.cr301_contactpersonid,
+    accountId: (raw[ACCOUNT_VALUE_FIELD] as string) || '',
+    name: (r.cr301_newcolumn || '').trim() || '(unnamed)',
+    role: r.ms_role ?? null,
+    roleLabel: labelOf(ROLE_OPTIONS, r.ms_role),
+    department: r.cr301_department ?? null,
+    departmentLabel: labelOf(DEPARTMENT_OPTIONS, r.cr301_department),
+    phone: r.cr301_phone || '',
+    email: r.cr301_email || '',
+  };
+}
+
 /** All active stakeholders that are linked to an account, grouped by account id. */
 export async function fetchStakeholdersByAccount(): Promise<Map<string, Stakeholder[]>> {
   const result = await Cr301_contactpersonsService.getAll({
-    select: ['cr301_contactpersonid', 'cr301_newcolumn', 'ms_role', 'cr301_department', 'cr301_phone', 'cr301_email', ACCOUNT_VALUE_FIELD],
+    select: STAKEHOLDER_SELECT,
     filter: `${ACCOUNT_VALUE_FIELD} ne null and statecode eq 0`,
     orderBy: ['cr301_newcolumn asc'],
   });
   if (!result.success) throw new Error(operationErrorMessage(result.error, 'Could not load stakeholders.'));
   const byAccount = new Map<string, Stakeholder[]>();
   (result.data || []).forEach((r) => {
-    const raw = r as unknown as Record<string, unknown>;
-    const accountId = (raw[ACCOUNT_VALUE_FIELD] as string) || '';
+    const s = toStakeholder(r);
+    const accountId = s.accountId;
     if (!accountId) return;
-    const s: Stakeholder = {
-      id: r.cr301_contactpersonid,
-      accountId,
-      name: (r.cr301_newcolumn || '').trim() || '(unnamed)',
-      role: r.ms_role ?? null,
-      roleLabel: labelOf(ROLE_OPTIONS, r.ms_role),
-      department: r.cr301_department ?? null,
-      departmentLabel: labelOf(DEPARTMENT_OPTIONS, r.cr301_department),
-      phone: r.cr301_phone || '',
-      email: r.cr301_email || '',
-    };
     const list = byAccount.get(accountId);
     if (list) list.push(s);
     else byAccount.set(accountId, [s]);
@@ -119,8 +126,31 @@ export async function updateStakeholder(id: string, input: StakeholderInput): Pr
   if (!result.success) throw new Error(operationErrorMessage(result.error, 'Could not update stakeholder.'));
 }
 
-export async function deleteStakeholder(id: string): Promise<void> {
-  await Cr301_contactpersonsService.delete(id);
+/**
+ * Deactivated rather than deleted — activities that already point at this
+ * stakeholder (cfm_stakeholderdealtwith) keep their link, and the active-only
+ * filter above drops it from the list and the pickers.
+ */
+export async function deactivateStakeholder(id: string): Promise<void> {
+  const result = await Cr301_contactpersonsService.update(id, { statecode: 1, statuscode: 2 } as unknown as Partial<Omit<Cr301_contactpersonsBase, 'cr301_contactpersonid'>>);
+  if (!result.success) throw new Error(operationErrorMessage(result.error, 'Could not deactivate stakeholder.'));
+}
+
+/** Brings a deactivated stakeholder back into the list and the pickers. */
+export async function activateStakeholder(id: string): Promise<void> {
+  const result = await Cr301_contactpersonsService.update(id, { statecode: 0, statuscode: 1 } as unknown as Partial<Omit<Cr301_contactpersonsBase, 'cr301_contactpersonid'>>);
+  if (!result.success) throw new Error(operationErrorMessage(result.error, 'Could not activate stakeholder.'));
+}
+
+/** One account's deactivated stakeholders — loaded on demand by the drawer. */
+export async function fetchInactiveStakeholders(accountId: string): Promise<Stakeholder[]> {
+  const result = await Cr301_contactpersonsService.getAll({
+    select: STAKEHOLDER_SELECT,
+    filter: `${ACCOUNT_VALUE_FIELD} eq ${accountId} and statecode eq 1`,
+    orderBy: ['cr301_newcolumn asc'],
+  });
+  if (!result.success) throw new Error(operationErrorMessage(result.error, 'Could not load inactive stakeholders.'));
+  return (result.data || []).map(toStakeholder);
 }
 
 export function initials(name: string): string {

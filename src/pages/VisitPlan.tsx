@@ -573,6 +573,20 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
       // value/target. Recomputed on every load so the achievement-level numbers
       // never drift from what the week-level data actually says.
       try {
+        // A week whose stored Actual is below the visits the audit counted
+        // under it (an adjustVisitPlanActual call that failed or never ran)
+        // gets the missing ones registered here, before the roll-ups read it.
+        const weekUpdates: Promise<unknown>[] = [];
+        owners.forEach((o) =>
+          o.weeks.forEach((w) => {
+            const counted = w.audit ? w.audit.correct + w.audit.wrong : 0;
+            if (counted <= w.actual) return;
+            weekUpdates.push(Cfm_collectionplanweeksService.update(w.id, { cfm_actual: counted }));
+            w.actual = counted;
+          })
+        );
+        if (weekUpdates.length) await Promise.all(weekUpdates);
+
         const achAggregates = new Map<string, { actual: number; target: number }>();
         const breakdownUpdates: Promise<unknown>[] = [];
         owners.forEach((o) => {
@@ -756,40 +770,6 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
     });
   }
 
-  function planValue(w: WeekRow): string {
-    return w.id in planDrafts ? planDrafts[w.id] : String(w.plan);
-  }
-
-  async function commitPlan(owner: OwnerRow, week: WeekRow) {
-    const draft = planDrafts[week.id];
-    if (draft === undefined) return;
-    const value = Math.max(0, Number(draft) || 0);
-    if (value === week.plan) {
-      setPlanDrafts((prev) => {
-        const next = { ...prev };
-        delete next[week.id];
-        return next;
-      });
-      return;
-    }
-    const key = week.id;
-    setCellState((prev) => ({ ...prev, [key]: 'saving' }));
-    try {
-      await saveWeekPlan(owner, week.id, value);
-      setPlanDrafts((prev) => {
-        const next = { ...prev };
-        delete next[week.id];
-        return next;
-      });
-      setCellState((prev) => ({ ...prev, [key]: 'saved' }));
-      setTimeout(() => setCellState((prev) => { const n = { ...prev }; delete n[key]; return n; }), 900);
-    } catch (e) {
-      setCellState((prev) => ({ ...prev, [key]: 'error' }));
-      setTimeout(() => setCellState((prev) => { const n = { ...prev }; delete n[key]; return n; }), 1400);
-      showToast(e instanceof Error ? e.message : 'Save failed.', 4500);
-    }
-  }
-
   function objectiveDraftKey(weekId: string, objective: ObjectiveValue): string {
     return `${weekId}|obj${objective}`;
   }
@@ -800,7 +780,8 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
 
   /**
    * Save one objective's target for a week, then set the week's cfm_plan to
-   * the sum of its objectives and roll that up (same path as commitPlan).
+   * the sum of its objectives and roll that up. The week plan itself is
+   * read-only — objectives are the only way to change it.
    * A missing objective record is created (and bound to the week) only when
    * the new value is > 0; an existing one is updated in place, even to 0.
    */
@@ -1237,7 +1218,7 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
         }
 
         // Verify the weeks actually landed against this breakdown — same
-        // "trust a fresh read, not the write response" reasoning as commitPlan.
+        // "trust a fresh read, not the write response" reasoning as saveWeekPlan.
         const savedWeeks = await fetchAll<{ cfm_collectionplanweekid: string }>(
           (skipToken) =>
             Cfm_collectionplanweeksService.getAll({
@@ -1523,10 +1504,8 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
                                 ) : (
                                   o.weeks.map((w) => {
                                     const key = w.id;
-                                    const draftPlan = Number(planValue(w)) || 0;
-                                    const prog = draftPlan > 0 ? Math.min(100, (w.actual / draftPlan) * 100) : 0;
+                                    const prog = w.plan > 0 ? Math.min(100, (w.actual / w.plan) * 100) : 0;
                                     const locked = weekHasEnded(o.year, o.month, w.number);
-                                    const hasObjectives = Object.keys(w.objectives).length > 0;
                                     return (
                                       <div className="vp-wk" key={w.id}>
                                         <div className="vp-wtitle">Week {w.number}</div>
@@ -1535,18 +1514,9 @@ export default function VisitPlanPage({ region }: VisitPlanPageProps) {
                                             <small>Plan</small>
                                             <input
                                               type="number"
-                                              min={0}
-                                              value={planValue(w)}
-                                              disabled={locked || hasObjectives}
-                                              title={
-                                                locked
-                                                  ? 'Locked — this week’s period has ended.'
-                                                  : hasObjectives
-                                                    ? 'Sum of this week’s objectives — edit them below.'
-                                                    : undefined
-                                              }
-                                              onChange={(e) => setPlanDrafts((prev) => ({ ...prev, [w.id]: e.target.value }))}
-                                              onBlur={() => commitPlan(o, w)}
+                                              value={w.plan}
+                                              disabled
+                                              title={locked ? 'Locked — this week’s period has ended.' : 'Sum of this week’s objectives — edit them below.'}
                                             />
                                           </div>
                                           <div>

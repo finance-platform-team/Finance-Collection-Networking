@@ -4,8 +4,10 @@ import { useConfirm } from '../lib/useConfirm';
 import {
   DEPARTMENT_OPTIONS,
   ROLE_OPTIONS,
+  activateStakeholder,
   createStakeholder,
-  deleteStakeholder,
+  deactivateStakeholder,
+  fetchInactiveStakeholders,
   initials,
   updateStakeholder,
   type Stakeholder,
@@ -52,7 +54,12 @@ export default function StakeholdersDrawer({ open, account, stakeholders, startI
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deactivatingId, setDeactivatingId] = useState<string | null>(null);
+  // Inactive stakeholders are loaded only when asked for — the parent's map
+  // holds active ones only.
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactive, setInactive] = useState<Stakeholder[] | null>(null);
+  const [activatingId, setActivatingId] = useState<string | null>(null);
 
   function resetForm(s?: Stakeholder) {
     setError('');
@@ -73,6 +80,8 @@ export default function StakeholdersDrawer({ open, account, stakeholders, startI
     if (openKey) {
       resetForm();
       setMode(startInAddMode ? 'form' : 'list');
+      setShowInactive(false);
+      setInactive(null);
     }
   }
 
@@ -126,22 +135,53 @@ export default function StakeholdersDrawer({ open, account, stakeholders, startI
     }
   }
 
-  async function handleDelete(s: Stakeholder) {
+  async function handleDeactivate(s: Stakeholder) {
     const ok = await confirm({
-      title: 'Remove stakeholder?',
-      message: `${s.name} will be permanently removed from ${account?.name || 'this account'}.`,
+      title: 'Deactivate stakeholder?',
+      message: `${s.name} will be deactivated on ${account?.name || 'this account'} and no longer offered for new activities. Past activities keep the link.`,
       danger: true,
-      confirmLabel: 'Remove',
+      confirmLabel: 'Deactivate',
     });
     if (!ok) return;
-    setDeletingId(s.id);
+    setDeactivatingId(s.id);
     try {
-      await deleteStakeholder(s.id);
-      await onChanged('Stakeholder removed');
+      await deactivateStakeholder(s.id);
+      await onChanged('Stakeholder deactivated');
+      if (showInactive) setInactive((prev) => [...(prev || []), s].sort((a, b) => a.name.localeCompare(b.name)));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setDeletingId(null);
+      setDeactivatingId(null);
+    }
+  }
+
+  async function loadInactive() {
+    if (!account) return;
+    try {
+      setInactive(await fetchInactiveStakeholders(account.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setInactive([]);
+    }
+  }
+
+  function toggleInactive() {
+    const next = !showInactive;
+    setShowInactive(next);
+    if (next && inactive === null) void loadInactive();
+  }
+
+  async function handleActivate(s: Stakeholder) {
+    setActivatingId(s.id);
+    setError('');
+    try {
+      await activateStakeholder(s.id);
+      setInactive((prev) => (prev || []).filter((x) => x.id !== s.id));
+      await onChanged('Stakeholder activated');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setActivatingId(null);
     }
   }
 
@@ -252,8 +292,8 @@ export default function StakeholdersDrawer({ open, account, stakeholders, startI
                         <button title="Edit" onClick={() => startEdit(s)}>
                           <Icon className="fa-solid fa-pen" />
                         </button>
-                        <button className="sh-del" title="Remove" disabled={deletingId === s.id} onClick={() => handleDelete(s)}>
-                          <Icon className={`fa-solid ${deletingId === s.id ? 'fa-spinner fa-spin' : 'fa-trash'}`} />
+                        <button className="sh-del" title="Deactivate" disabled={deactivatingId === s.id} onClick={() => handleDeactivate(s)}>
+                          <Icon className={`fa-solid ${deactivatingId === s.id ? 'fa-spinner fa-spin' : 'fa-user-slash'}`} />
                         </button>
                       </div>
                     </div>
@@ -284,6 +324,43 @@ export default function StakeholdersDrawer({ open, account, stakeholders, startI
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {!inForm && account && (
+            <div className="sh-inactive">
+              <button className="sh-inactive-toggle" onClick={toggleInactive}>
+                <Icon className={`fa-solid ${showInactive ? 'fa-chevron-up' : 'fa-chevron-down'}`} />
+                {showInactive ? 'Hide inactive stakeholders' : 'Show inactive stakeholders'}
+              </button>
+              {showInactive &&
+                (inactive === null ? (
+                  <div className="sh-inactive-note">
+                    <Icon className="fa-solid fa-spinner fa-spin" /> Loading…
+                  </div>
+                ) : inactive.length === 0 ? (
+                  <div className="sh-inactive-note">No inactive stakeholders on this account.</div>
+                ) : (
+                  <div className="sh-list">
+                    {inactive.map((s) => (
+                      <div key={s.id} className="sh-card sh-card-inactive">
+                        <div className={`sh-avatar ${deptClass(s.department)}`}>{initials(s.name)}</div>
+                        <div className="sh-card-body">
+                          <div className="sh-card-top">
+                            <div className="sh-name">{s.name}</div>
+                            <button className="sh-activate" disabled={activatingId === s.id} onClick={() => handleActivate(s)}>
+                              <Icon className={`fa-solid ${activatingId === s.id ? 'fa-spinner fa-spin' : 'fa-rotate-left'}`} /> Activate
+                            </button>
+                          </div>
+                          <div className="sh-meta">
+                            <span className="sh-role">{s.roleLabel || 'Role not set'}</span>
+                            <span className="sh-inactive-badge">Inactive</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
             </div>
           )}
         </div>

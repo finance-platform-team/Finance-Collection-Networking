@@ -16,8 +16,7 @@
       "dataSources": {
         "accounts": {
           "entitySetName": "cr301_accounts",
-          "logicalName": "cr301_account",
-          "isHidden": false
+          "logicalName": "cr301_account"
         },
         "agents": {
           "entitySetName": "cr301_agents",

@@ -19,13 +19,14 @@ import {
   type PlanRow,
 } from '../lib/activityComm';
 import type { UserRole } from '../lib/useCurrentUser';
+import type { ThreadRole } from '../lib/actionItems';
 
 export type ThreadTarget = { kind: 'plan'; row: PlanRow } | { kind: 'activity'; row: ActivityRow };
 
 interface ThreadPanelProps {
   target: ThreadTarget;
   messages: Message[];
-  role: UserRole;
+  role: ThreadRole;
   myIds: string[];
   monthLabel: string;
   onSend: (body: string) => void;
@@ -227,6 +228,13 @@ export default function ThreadPanel(props: ThreadPanelProps) {
         </div>
       </div>
 
+      {role === 'viewer' ? (
+        <div className="ac-composer">
+          <div className="ac-lock-hint">
+            <Icon className="fa-solid fa-eye" /> Read-only — this target was set by {target.kind === 'plan' && target.row.createdByName ? target.row.createdByName : 'another manager'}, who manages this week.
+          </div>
+        </div>
+      ) : (
       <div className="ac-composer">
         <div className="ac-quick">
           {QUICK_REPLIES[target.kind][role].map((q) => (
@@ -249,13 +257,14 @@ export default function ThreadPanel(props: ThreadPanelProps) {
           </button>
         </div>
       </div>
+      )}
     </aside>
   );
 }
 
 interface PlanContextProps {
   row: PlanRow;
-  role: UserRole;
+  role: ThreadRole;
   recommendation: ObjectiveMix | null;
   recommendOpen: boolean;
   mixDraft: ObjectiveMix;
@@ -310,7 +319,7 @@ function PlanContext(p: PlanContextProps) {
         </span>
       </label>
 
-      {!isAgent && (
+      {role === 'manager' && (
         <div className="ac-lock-hint">
           <Icon className="fa-solid fa-lock" /> Only the agent can tick the confirmation. You can reply, adjust the plan or ask again.
         </div>
@@ -350,7 +359,7 @@ function PlanContext(p: PlanContextProps) {
         </div>
       )}
 
-      {!isAgent && row.status === STATUS_CHANGE_REQUESTED && (
+      {role === 'manager' && row.status === STATUS_CHANGE_REQUESTED && (
         <div className="ac-manager-actions">
           <button type="button" className="ac-btn ac-btn-ghost" onClick={p.onAskReconfirm}>
             <Icon className="fa-solid fa-rotate-left" /> Keep plan, ask to re-confirm
@@ -364,7 +373,7 @@ function PlanContext(p: PlanContextProps) {
   );
 }
 
-function FeedbackContext({ row, role, onToggle }: { row: ActivityRow; role: UserRole; onToggle: (v: boolean) => void }) {
+function FeedbackContext({ row, role, onToggle }: { row: ActivityRow; role: ThreadRole; onToggle: (v: boolean) => void }) {
   const isManager = role === 'manager';
   return (
     <div className="ac-context">

@@ -6,6 +6,7 @@ import { Cfm_collectionplanweeksService } from '../generated/services/Cfm_collec
 import { Cr301_agentsService } from '../generated/services/Cr301_agentsService';
 import type { Region } from './useRegion';
 import { fetchAll } from './dataverse';
+import { COLLECTION_ACCOUNTS_FILTER } from './accountCategory';
 
 /* Shared by Accounts.tsx and VisitPlan.tsx to flag when the company-wide
  * "Target Visit" total on Accounts drifts from Visit Plan's current-month
@@ -15,8 +16,6 @@ import { fetchAll } from './dataverse';
  * (not every achievement ever created), since Accounts' Target Visit field
  * isn't itself month-specific. */
 
-const TYPE_INSURANCE = 983080002;
-const TYPE_DIRECT = 766340001;
 const ACCOUNT_REGION_EGYPT = 983080000; // cr301_country's Egypt value
 const ACCOUNT_REGION_KSA = 983080001; // cr301_country's KSA value
 
@@ -50,7 +49,7 @@ export async function fetchAccountTargetSum(region: Region | null): Promise<numb
     (skipToken) =>
       Cr301_accountsService.getAll({
         select: ['cr301_accountid', 'cr301_country', 'cfm_visittargetcollection'],
-        filter: `cr301_accounttype eq ${TYPE_INSURANCE} or cr301_accounttype eq ${TYPE_DIRECT}`,
+        filter: COLLECTION_ACCOUNTS_FILTER,
         maxPageSize: 5000,
         skipToken,
       }),
